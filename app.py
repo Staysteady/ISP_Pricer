@@ -12,6 +12,14 @@ import os
 import pandas as pd
 import base64
 
+# Import authentication module
+from app.utils.auth import login_form
+
+# Check if the user is authenticated before showing the app
+if not login_form():
+    # Stop execution of the app if the user is not authenticated
+    st.stop()
+
 # Determine if we're in cloud deployment
 is_cloud = 'STREAMLIT_SHARING' in os.environ or 'DEPLOYED' in os.environ or st.secrets.get('DEPLOYED', False)
 
@@ -60,6 +68,14 @@ def display_logo():
     else:
         # Fallback to text if logo isn't available
         st.title("InkStitchPress Pricer")
+
+# Add a logout button in the sidebar
+with st.sidebar:
+    if st.button("Logout"):
+        # Clear the authentication status
+        st.session_state.authenticated = False
+        # Rerun the app to show the login form
+        st.rerun()
 
 # Initialize session state
 initialize_session_state()

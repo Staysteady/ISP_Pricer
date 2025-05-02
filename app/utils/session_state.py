@@ -5,6 +5,9 @@ from datetime import datetime
 
 def initialize_session_state():
     """Initialize session state variables if they don't exist."""
+    if 'authenticated' not in st.session_state:
+        st.session_state.authenticated = False
+        
     if 'line_items' not in st.session_state:
         st.session_state.line_items = []
     
