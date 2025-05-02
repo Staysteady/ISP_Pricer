@@ -1,0 +1,96 @@
+{
+    "print_electricity": [
+        {
+            "process_type": "print",
+            "process_name": "Print",
+            "avg_time_min": 10,
+            "cost_per_unit_kwh": 0.4,
+            "machine_watts": 400,
+            "usage_w": 67,
+            "cost_per_run": 0.03
+        },
+        {
+            "process_type": "print",
+            "process_name": "Bake",
+            "avg_time_min": 5,
+            "cost_per_unit_kwh": 0.4,
+            "machine_watts": 1800,
+            "usage_w": 150,
+            "cost_per_run": 0.06
+        },
+        {
+            "process_type": "print",
+            "process_name": "Press 1 Logo",
+            "avg_time_min": 10,
+            "cost_per_unit_kwh": 0.4,
+            "machine_watts": 1800,
+            "usage_w": 300,
+            "cost_per_run": 0.12
+        },
+        {
+            "process_type": "print",
+            "process_name": "Press 2 Logo",
+            "avg_time_min": 10,
+            "cost_per_unit_kwh": 0.4,
+            "machine_watts": 1800,
+            "usage_w": 300,
+            "cost_per_run": 0.12
+        },
+        {
+            "process_type": "print",
+            "process_name": "Print (2nd small logo)",
+            "avg_time_min": 5,
+            "cost_per_unit_kwh": 0.4,
+            "machine_watts": 400,
+            "usage_w": 33,
+            "cost_per_run": 0.01
+        },
+        {
+            "process_type": "print",
+            "process_name": "Bake (2nd small logo)",
+            "avg_time_min": 2.5,
+            "cost_per_unit_kwh": 0.4,
+            "machine_watts": 1800,
+            "usage_w": 75,
+            "cost_per_run": 0.03
+        },
+        {
+            "process_type": "print",
+            "process_name": "Press 1 Logo (2nd small logo)",
+            "avg_time_min": 5,
+            "cost_per_unit_kwh": 0.4,
+            "machine_watts": 1800,
+            "usage_w": 150,
+            "cost_per_run": 0.06
+        },
+        {
+            "process_type": "print",
+            "process_name": "Press 2 Logo (2nd small logo)",
+            "avg_time_min": 5,
+            "cost_per_unit_kwh": 0.4,
+            "machine_watts": 1800,
+            "usage_w": 150,
+            "cost_per_run": 0.06
+        }
+    ],
+    "embroidery_electricity": [
+        {
+            "process_type": "embroidery",
+            "process_name": "Embroidery Small Logo",
+            "avg_time_min": 10,
+            "cost_per_unit_kwh": 0.4,
+            "machine_watts": 500,
+            "usage_w": 83,
+            "cost_per_run": 0.03
+        },
+        {
+            "process_type": "embroidery",
+            "process_name": "Embroidery Large Logo",
+            "avg_time_min": 40,
+            "cost_per_unit_kwh": 0.4,
+            "machine_watts": 500,
+            "usage_w": 333,
+            "cost_per_run": 0.13
+        }
+    ]
+} 

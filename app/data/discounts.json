@@ -1,0 +1,35 @@
+{
+    "brackets": [
+        {
+            "min": 1,
+            "max": 9,
+            "discount": 0.0
+        },
+        {
+            "min": 10,
+            "max": 24,
+            "discount": 5.0
+        },
+        {
+            "min": 25,
+            "max": 49,
+            "discount": 10.0
+        },
+        {
+            "min": 50,
+            "max": 99,
+            "discount": 15.0
+        },
+        {
+            "min": 100,
+            "max": 249,
+            "discount": 20.0
+        },
+        {
+            "min": 250,
+            "max": 10000,
+            "discount": 25.0
+        }
+    ],
+    "override_discount": 26.5
+}

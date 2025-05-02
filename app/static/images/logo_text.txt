@@ -1,0 +1,8 @@
+REPLACE THIS FILE WITH YOUR ACTUAL LOGO IMAGE
+
+For the PDF quote generation to work properly, please place your company logo file in this directory 
+with the name "inkstitchpress_logo.png".
+
+The recommended dimensions are 300x100 pixels or a similar aspect ratio.
+
+If a logo file is not found, the PDF generator will fall back to using just text. 

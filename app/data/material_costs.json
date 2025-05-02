@@ -1,0 +1,100 @@
+{
+    "film_costs": [
+        {
+            "material_type": "Film",
+            "material_name": "Film (Small Logo)",
+            "cost_per_unit": 79,
+            "unit_measurement": "Length (m)",
+            "unit_value": 100,
+            "logo_size": "Small Logo",
+            "cost_per_logo": 0.158
+        },
+        {
+            "material_type": "Film",
+            "material_name": "Film (Large Logo)",
+            "cost_per_unit": 79,
+            "unit_measurement": "Length (m)",
+            "unit_value": 100,
+            "logo_size": "Large Logo",
+            "cost_per_logo": 0.395
+        }
+    ],
+    "ink_costs": [
+        {
+            "material_type": "Ink",
+            "material_name": "Ink (Small Logo)",
+            "cost_per_unit": 59,
+            "unit_measurement": "Weight (g)",
+            "unit_value": 1000,
+            "logo_size": "Small Logo",
+            "cost_per_logo": 0.18
+        },
+        {
+            "material_type": "Ink",
+            "material_name": "Ink (Large Logo)",
+            "cost_per_unit": 59,
+            "unit_measurement": "Weight (g)",
+            "unit_value": 1000,
+            "logo_size": "Large Logo",
+            "cost_per_logo": 0.24
+        }
+    ],
+    "powder_costs": [
+        {
+            "material_type": "Powder",
+            "material_name": "Powder (Small Logo)",
+            "cost_per_unit": 22,
+            "unit_measurement": "Weight (g)",
+            "unit_value": 1000,
+            "logo_size": "Small Logo",
+            "cost_per_logo": 0.09
+        },
+        {
+            "material_type": "Powder",
+            "material_name": "Powder (Large Logo)",
+            "cost_per_unit": 22,
+            "unit_measurement": "Weight (g)",
+            "unit_value": 1000,
+            "logo_size": "Large Logo",
+            "cost_per_logo": 0.18
+        }
+    ],
+    "backing_costs": [
+        {
+            "material_type": "Backing",
+            "material_name": "EasySol H20 Soluble Film (Small Roll)",
+            "cost_per_unit": 30,
+            "unit_measurement": "Length (m)",
+            "unit_value": 100,
+            "logo_size": "Small Logo",
+            "cost_per_logo": 0.30
+        },
+        {
+            "material_type": "Backing",
+            "material_name": "EasySol H20 Soluble Film (Large Roll)",
+            "cost_per_unit": 48,
+            "unit_measurement": "Length (m)",
+            "unit_value": 100,
+            "logo_size": "Large Logo",
+            "cost_per_logo": 0.48
+        },
+        {
+            "material_type": "Backing",
+            "material_name": "Geo2 Ultra Soft Backing (Long Roll)",
+            "cost_per_unit": 92.4,
+            "unit_measurement": "Length (m)",
+            "unit_value": 100,
+            "logo_size": "Large Logo",
+            "cost_per_logo": 0.92
+        },
+        {
+            "material_type": "Backing",
+            "material_name": "Geo2 Ultra Soft Backing (Small Squares)",
+            "cost_per_unit": 103.5,
+            "unit_measurement": "Piece",
+            "unit_value": 2500,
+            "logo_size": "Small Logo",
+            "cost_per_logo": 0.04
+        }
+    ]
+} 

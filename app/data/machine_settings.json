@@ -1,0 +1,64 @@
+{
+    "print_machines": [
+        {
+            "name": "DTF Printer",
+            "wattage": 400,
+            "description": "DTF print machine"
+        },
+        {
+            "name": "Heat Press",
+            "wattage": 1800,
+            "description": "Heat press for applying transfers"
+        },
+        {
+            "name": "Oven",
+            "wattage": 1800,
+            "description": "Bake unit for curing prints"
+        },
+        {
+            "name": "Shaker",
+            "wattage": 400,
+            "description": "Shaker for DTF Prints"
+        },
+        {
+            "name": "Cricut",
+            "wattage": 180,
+            "description": "Vinyl Cricut"
+        }
+    ],
+    "embroidery_machines": [
+        {
+            "name": "Melco EMT16",
+            "wattage": 500,
+            "description": "Embroidery machine"
+        }
+    ],
+    "electricity_rate": {
+        "cost_per_kwh": 0.4,
+        "last_updated": "2023-11-01"
+    },
+    "process_times": {
+        "print": {
+            "standard_print": 10,
+            "standard_bake": 5,
+            "standard_press": 10,
+            "small_logo_print": 5,
+            "small_logo_bake": 2.5,
+            "small_logo_press": 5
+        },
+        "embroidery": {
+            "small_logo": 10,
+            "large_logo": 40
+        }
+    },
+    "usage_factors": {
+        "print": {
+            "printer_usage_factor": 0.17,
+            "bake_usage_factor": 0.08,
+            "press_usage_factor": 0.17
+        },
+        "embroidery": {
+            "embroidery_usage_factor": 0.17
+        }
+    }
+}

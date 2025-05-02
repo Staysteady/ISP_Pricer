@@ -1,0 +1,58 @@
+{
+    "printing_services": [
+        {
+            "name": "1 Small Logo",
+            "price": 5.0,
+            "costs": {
+                "electric_to_print": 0.027,
+                "electric_to_bake": 0.060000000000000005,
+                "electric_to_press": 0.11999999999999998,
+                "film_and_ink_costs": 0.34,
+                "sanding_costs": 0.09
+            },
+            "total_cost": 0.637,
+            "id": "print_d4ee0d9c"
+        }
+    ],
+    "embroidery_services": [
+        {
+            "id": "emb_1_small",
+            "name": "EMBROIDERY COSTINGS 1 SMALL LOGO",
+            "price": 6.0,
+            "costs": {
+                "electric": 0.03,
+                "threads": 1.25,
+                "bobbins": 0.12,
+                "front_film_costing": 0.05,
+                "backing": 0.04
+            },
+            "total_cost": 1.49
+        },
+        {
+            "id": "emb_1_large",
+            "name": "EMBROIDERY COSTINGS 1 LARGE LOGO",
+            "price": 11.0,
+            "costs": {
+                "electric": 0.13,
+                "threads": 1.75,
+                "bobbins": 0.3,
+                "front_film_costing": 0.1,
+                "backing": 0.2
+            },
+            "total_cost": 2.48
+        },
+        {
+            "id": "emb_front_back",
+            "name": "EMBROIDERY COSTINGS FRONT & BACK",
+            "price": 17.0,
+            "costs": {
+                "electric": 0.17,
+                "threads": 3.0,
+                "bobbins": 0.42,
+                "front_film_costing": 0.15,
+                "backing": 0.24
+            },
+            "total_cost": 3.98
+        }
+    ]
+}
