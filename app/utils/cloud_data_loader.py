@@ -113,18 +113,28 @@ class CloudDataLoader:
             
             if colours and colours != "All":
                 # We need to check for exact match or All values
-                # Since or_ isn't available, we'll use a more complex query
-                query = query.filter('Colours', 'in', [colours, 'All'])
+                query = query.or_('Colours.eq.' + colours + ',Colours.eq.All')
                 
             if sizes and sizes != "All":
-                # Similar approach for sizes
-                query = query.filter('Sizes', 'in', [sizes, 'All'])
+                # Don't use the size value directly in the query to avoid PostgREST parsing issues
+                # Instead, retrieve all products that match other criteria and filter in Python
+                include_sizes = True
+            else:
+                include_sizes = False
             
             response = query.execute()
+            results_df = pd.DataFrame()
             
             if hasattr(response, 'data'):
-                return pd.DataFrame(response.data)
-            return pd.DataFrame()
+                results_df = pd.DataFrame(response.data)
+                
+                # If we need to filter by size and have results, do the filtering in Python
+                if include_sizes and not results_df.empty:
+                    # Keep products that have the exact size or "All" size
+                    size_mask = (results_df['Sizes'] == sizes) | (results_df['Sizes'] == 'All')
+                    results_df = results_df[size_mask]
+            
+            return results_df
         except Exception as e:
             st.error(f"Error getting filtered products: {str(e)}")
             return pd.DataFrame()
