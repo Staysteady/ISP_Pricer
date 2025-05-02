@@ -64,19 +64,39 @@ def quote_actions(quote_data, line_items, pricing_engine):
         # PDF viewer
         st.subheader("PDF Preview")
         
-        # Convert PDF content to base64 for embedded viewing
-        if 'current_pdf_content' in st.session_state:
-            pdf_base64 = quote_generator.get_quote_as_base64(st.session_state.current_pdf_content)
+        # Check if running in Streamlit Cloud
+        is_cloud = st.secrets.get("IS_CLOUD", False)
+        
+        # Only show preview if not in cloud or preview is explicitly enabled
+        if not is_cloud:
+            # Convert PDF content to base64 for embedded viewing
+            if 'current_pdf_content' in st.session_state:
+                pdf_base64 = quote_generator.get_quote_as_base64(st.session_state.current_pdf_content)
+            else:
+                # If PDF content not in session state but file exists, read it
+                with open(pdf_path, "rb") as pdf_file:
+                    pdf_content = pdf_file.read()
+                    st.session_state.current_pdf_content = pdf_content
+                    pdf_base64 = quote_generator.get_quote_as_base64(pdf_content)
+            
+            # Display PDF in an iframe
+            pdf_display = f'<iframe src="data:application/pdf;base64,{pdf_base64}" width="100%" height="600" type="application/pdf"></iframe>'
+            st.markdown(pdf_display, unsafe_allow_html=True)
         else:
-            # If PDF content not in session state but file exists, read it
+            # Show a message explaining preview limitations in cloud
+            st.info("PDF preview is not available in Streamlit Cloud. Please use the 'Download PDF' button to view your quote.")
+            
+            # Add a larger, more prominent download button
             with open(pdf_path, "rb") as pdf_file:
                 pdf_content = pdf_file.read()
-                st.session_state.current_pdf_content = pdf_content
-                pdf_base64 = quote_generator.get_quote_as_base64(pdf_content)
-        
-        # Display PDF in an iframe
-        pdf_display = f'<iframe src="data:application/pdf;base64,{pdf_base64}" width="100%" height="600" type="application/pdf"></iframe>'
-        st.markdown(pdf_display, unsafe_allow_html=True)
+                st.download_button(
+                    label="⬇️ Download and View PDF",
+                    data=pdf_content,
+                    file_name=os.path.basename(pdf_path),
+                    mime="application/pdf",
+                    key="download_pdf_large",
+                    use_container_width=True,
+                )
         
         # Email section
         st.subheader("Email Quote")

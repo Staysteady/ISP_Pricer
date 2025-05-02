@@ -1,3 +1,0 @@
-id,category_id,name,description,cost_value,cost_type,date_incurred,recurring_period,created_at,updated_at
-1,2,Electricity,Monthly electricity bill,0.4,per_unit,2025-05-02,monthly,2025-05-02 11:06:16,2025-05-02 11:06:16
-2,5,Workshop Rent,Monthly workshop rent,1000.0,fixed,2025-05-02,monthly,2025-05-02 11:06:16,2025-05-02 11:06:16

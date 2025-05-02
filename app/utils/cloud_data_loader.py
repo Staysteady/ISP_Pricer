@@ -112,10 +112,13 @@ class CloudDataLoader:
                 query = query.eq('Product Group', product_group)
             
             if colours and colours != "All":
-                query = query.or_(f"Colours.eq.{colours},Colours.like.%All%,Colours.eq.All")
-            
+                # We need to check for exact match or All values
+                # Since or_ isn't available, we'll use a more complex query
+                query = query.filter('Colours', 'in', [colours, 'All'])
+                
             if sizes and sizes != "All":
-                query = query.or_(f"Sizes.eq.{sizes},Sizes.like.%All%,Sizes.eq.All,Sizes.like.%-%-")
+                # Similar approach for sizes
+                query = query.filter('Sizes', 'in', [sizes, 'All'])
             
             response = query.execute()
             
