@@ -39,7 +39,42 @@ A comprehensive pricing and quoting tool for InkStitchPress, a printing and embr
 
 ## Database
 
-The application uses SQLite to store product data, quotes, and cost information. The database is created automatically on first run.
+The application supports two database modes:
+- **Local mode**: Uses SQLite database stored locally
+- **Cloud mode**: Uses Supabase PostgreSQL database for web deployment
+
+## Deployment
+
+### Local Deployment
+
+For local development and testing:
+1. Clone the repository
+2. Install dependencies with `pip install -r requirements.txt`
+3. Run with `streamlit run app.py`
+
+### Cloud Deployment (Streamlit Cloud)
+
+1. **Set up Supabase:**
+   - Create a Supabase account at [supabase.com](https://supabase.com)
+   - Create a new project
+   - Run the SQL migration scripts from the `supabase/migrations` directory
+   - Get your project URL and anon key
+
+2. **Deploy to Streamlit Cloud:**
+   - Fork this repository on GitHub
+   - Sign up at [streamlit.io/cloud](https://streamlit.io/cloud)
+   - Connect your GitHub repository
+   - In the Streamlit Cloud dashboard, add the following secrets:
+     ```
+     DEPLOYED = true
+     SUPABASE_URL = "https://your-project-id.supabase.co"
+     SUPABASE_KEY = "your-supabase-anon-key"
+     ```
+   - Deploy your app
+
+3. **Initial Database Setup:**
+   - Once deployed, upload your price list Excel file via the app interface
+   - The data will be stored in your Supabase database
 
 ## License
 

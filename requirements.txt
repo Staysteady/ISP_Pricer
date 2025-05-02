@@ -6,4 +6,6 @@ reportlab==4.4.0
 fpdf2==2.8.3
 PyPDF2==3.0.1
 pdfkit==1.0.0
-plotly==5.24.0 
+plotly==5.24.0
+supabase-py==2.3.1
+python-dotenv==1.0.1 

@@ -12,6 +12,9 @@ def data_upload(data_loader):
     """
     st.subheader("Update Price List")
     
+    # Check if we're in cloud mode
+    is_cloud = 'STREAMLIT_SHARING' in os.environ or 'DEPLOYED' in os.environ or st.secrets.get('DEPLOYED', False)
+    
     # Upload file
     uploaded_file = st.file_uploader(
         "Upload new price list Excel file", 
@@ -20,16 +23,24 @@ def data_upload(data_loader):
     )
     
     if uploaded_file is not None:
-        # Save the uploaded file to a temporary location
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
-            tmp_file.write(uploaded_file.getvalue())
-            tmp_file_path = tmp_file.name
-        
+        # For local mode, save to temp file
+        if not is_cloud:
+            # Save the uploaded file to a temporary location
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+                tmp_file.write(uploaded_file.getvalue())
+                tmp_file_path = tmp_file.name
+            
+            # For preview, use the temp file path
+            preview_file = tmp_file_path
+        else:
+            # For cloud mode, use the uploaded file directly
+            preview_file = uploaded_file
+            
         # Show Excel file info
         with st.expander("Excel File Information", expanded=True):
             try:
                 # List sheets in the Excel file
-                excel = pd.ExcelFile(tmp_file_path)
+                excel = pd.ExcelFile(preview_file)
                 st.write("Sheets in the Excel file:")
                 for i, sheet in enumerate(excel.sheet_names):
                     st.write(f"{i+1}. {sheet}")
@@ -43,7 +54,7 @@ def data_upload(data_loader):
                 
                 # Show preview of selected sheet
                 preview_rows = st.slider("Number of preview rows", 3, 10, 5)
-                df_preview = pd.read_excel(tmp_file_path, sheet_name=preview_sheet, nrows=preview_rows)
+                df_preview = pd.read_excel(preview_file, sheet_name=preview_sheet, nrows=preview_rows)
                 st.write(f"Preview of '{preview_sheet}' sheet:")
                 st.dataframe(df_preview)
                 
@@ -66,17 +77,26 @@ def data_upload(data_loader):
         # Process the file when button is clicked
         if st.button("Process Price List"):
             with st.spinner("Processing price list..."):
-                success, message = data_loader.load_excel_to_db(
-                    tmp_file_path, 
-                    sheet_name=sheet_name,
-                    skiprows=skip_rows
-                )
-                
-                # Clean up the temporary file
-                try:
-                    os.unlink(tmp_file_path)
-                except Exception:
-                    pass
+                if is_cloud:
+                    # For cloud mode, pass the file directly
+                    success, message = data_loader.load_excel_to_db(
+                        uploaded_file, 
+                        sheet_name=sheet_name,
+                        skiprows=skip_rows
+                    )
+                else:
+                    # For local mode, use the file path
+                    success, message = data_loader.load_excel_to_db(
+                        tmp_file_path, 
+                        sheet_name=sheet_name,
+                        skiprows=skip_rows
+                    )
+                    
+                    # Clean up the temporary file
+                    try:
+                        os.unlink(tmp_file_path)
+                    except Exception:
+                        pass
                 
                 if success:
                     st.success(message)
