@@ -20,14 +20,32 @@ class CloudDataLoader:
             
         self.supabase_url = st.secrets.get("SUPABASE_URL", "")
         self.supabase_key = st.secrets.get("SUPABASE_KEY", "")
+        
+        # Helpful debugging information
+        if not self.supabase_url or not self.supabase_key:
+            st.error("Missing Supabase credentials in secrets.toml")
+            st.info("Go to the Streamlit Cloud dashboard, click on your app, select 'Settings', and verify your secrets.")
+            self.supabase = None
+            return
+            
+        # Check if the key looks like a valid Supabase key
+        if not self.supabase_key.startswith("eyJ"):
+            st.error("The Supabase key doesn't appear to be valid. It should start with 'eyJ'.")
+            self.supabase = None
+            return
+        
+        # Check if we're using the anon key (recommended for browser clients)
+        if '"role":"anon"' not in self.supabase_key and '"role": "anon"' not in self.supabase_key:
+            st.warning("You might be using a service_role key. For browser clients, the anon key is recommended.")
+            
         self.supabase = None
         
-        if self.supabase_url and self.supabase_key:
-            try:
-                self.supabase = create_client(self.supabase_url, self.supabase_key)
-                st.success("Connected to Supabase")
-            except Exception as e:
-                st.error(f"Failed to connect to Supabase: {str(e)}")
+        try:
+            self.supabase = create_client(self.supabase_url, self.supabase_key)
+            st.success("Connected to Supabase")
+        except Exception as e:
+            st.error(f"Failed to connect to Supabase: {str(e)}")
+            st.info("Please check your Supabase URL and key in the Streamlit secrets.")
     
     def load_excel_to_db(self, excel_file, sheet_name='Ralawise Price List 2025', skiprows=1):
         """Load the Excel pricing data into Supabase database."""
