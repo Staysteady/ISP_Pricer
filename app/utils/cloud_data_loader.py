@@ -34,10 +34,7 @@ class CloudDataLoader:
             self.supabase = None
             return
         
-        # Check if we're using the anon key (recommended for browser clients)
-        if '"role":"anon"' not in self.supabase_key and '"role": "anon"' not in self.supabase_key:
-            st.warning("You might be using a service_role key. For browser clients, the anon key is recommended.")
-            
+        # Remove the role key check as it's causing false positives
         self.supabase = None
         
         try:
