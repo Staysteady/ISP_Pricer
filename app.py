@@ -1,4 +1,13 @@
 import streamlit as st
+
+# Set page config - MUST BE FIRST STREAMLIT COMMAND
+st.set_page_config(
+    page_title="InkStitchPress Pricer",
+    page_icon="🏷️",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 import os
 import pandas as pd
 import base64
@@ -31,14 +40,6 @@ from app.components.pdf.quote_actions import quote_actions
 from app.components.service_settings import service_settings
 from app.components.service_selector import service_selector
 from app.components.cost_tracker import cost_tracker_main
-
-# Set page config
-st.set_page_config(
-    page_title="InkStitchPress Pricer",
-    page_icon="🏷️",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
 
 # Function to load and display the logo
 def display_logo():
