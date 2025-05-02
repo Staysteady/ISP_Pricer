@@ -112,16 +112,50 @@ class CloudDataLoader:
                 query = query.eq('Product Group', product_group)
             
             if colours and colours != "All":
-                # We need to check for exact match or All values
-                query = query.or_('Colours.eq.' + colours + ',Colours.eq.All')
-                
-            if sizes and sizes != "All":
-                # Don't use the size value directly in the query to avoid PostgREST parsing issues
-                # Instead, retrieve all products that match other criteria and filter in Python
-                include_sizes = True
-            else:
-                include_sizes = False
+                # We can't use 'or_' as it's not available in the cloud environment
+                # Let's use two separate queries and combine the results
+                try:
+                    # First, get products that exactly match the colour
+                    exact_match_query = self.supabase.table('products').select('*')
+                    if supplier:
+                        exact_match_query = exact_match_query.eq('Supplier', supplier)
+                    if product_group:
+                        exact_match_query = exact_match_query.eq('Product Group', product_group)
+                    exact_match_query = exact_match_query.eq('Colours', colours)
+                    
+                    # Then, get products with 'All' colours
+                    all_colours_query = self.supabase.table('products').select('*')
+                    if supplier:
+                        all_colours_query = all_colours_query.eq('Supplier', supplier)
+                    if product_group:
+                        all_colours_query = all_colours_query.eq('Product Group', product_group)
+                    all_colours_query = all_colours_query.eq('Colours', 'All')
+                    
+                    # Execute both queries
+                    exact_match_response = exact_match_query.execute()
+                    all_colours_response = all_colours_query.execute()
+                    
+                    # Combine results
+                    exact_match_df = pd.DataFrame(exact_match_response.data) if hasattr(exact_match_response, 'data') else pd.DataFrame()
+                    all_colours_df = pd.DataFrame(all_colours_response.data) if hasattr(all_colours_response, 'data') else pd.DataFrame()
+                    
+                    combined_df = pd.concat([exact_match_df, all_colours_df], ignore_index=True)
+                    
+                    # Continue with size filtering if needed
+                    if sizes and sizes != "All" and not combined_df.empty:
+                        # Filter by size in Python
+                        size_mask = (combined_df['Sizes'] == sizes) | (combined_df['Sizes'] == 'All')
+                        return combined_df[size_mask]
+                    
+                    return combined_df
+                except Exception as e:
+                    st.error(f"Error in colour filtering: {str(e)}")
+                    # Fall back to base query without colour filtering
+                    pass
             
+            # If we didn't handle colours with the special case above or if that failed, continue with the original query
+            
+            # Execute the query
             response = query.execute()
             results_df = pd.DataFrame()
             
@@ -129,7 +163,7 @@ class CloudDataLoader:
                 results_df = pd.DataFrame(response.data)
                 
                 # If we need to filter by size and have results, do the filtering in Python
-                if include_sizes and not results_df.empty:
+                if sizes and sizes != "All" and not results_df.empty:
                     # Keep products that have the exact size or "All" size
                     size_mask = (results_df['Sizes'] == sizes) | (results_df['Sizes'] == 'All')
                     results_df = results_df[size_mask]
