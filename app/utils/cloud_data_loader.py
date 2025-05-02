@@ -1,17 +1,33 @@
 import pandas as pd
 import os
 import streamlit as st
-from supabase import create_client, Client
+
+# Try to import Supabase with error handling
+try:
+    from supabase import create_client, Client
+    SUPABASE_AVAILABLE = True
+except ImportError:
+    SUPABASE_AVAILABLE = False
+    st.error("Supabase library could not be imported. Please install with: pip install supabase==1.0.3 httpx==0.23.3")
 
 class CloudDataLoader:
     def __init__(self):
         """Initialize the cloud data loader with Supabase connection."""
+        if not SUPABASE_AVAILABLE:
+            st.warning("Running in degraded mode: Supabase connection not available")
+            self.supabase = None
+            return
+            
         self.supabase_url = st.secrets.get("SUPABASE_URL", "")
         self.supabase_key = st.secrets.get("SUPABASE_KEY", "")
         self.supabase = None
         
         if self.supabase_url and self.supabase_key:
-            self.supabase = create_client(self.supabase_url, self.supabase_key)
+            try:
+                self.supabase = create_client(self.supabase_url, self.supabase_key)
+                st.success("Connected to Supabase")
+            except Exception as e:
+                st.error(f"Failed to connect to Supabase: {str(e)}")
     
     def load_excel_to_db(self, excel_file, sheet_name='Ralawise Price List 2025', skiprows=1):
         """Load the Excel pricing data into Supabase database."""
@@ -20,18 +36,18 @@ class CloudDataLoader:
                 return False, "Supabase connection not initialized"
                 
             # Read Excel file
-            print(f"Reading Excel file, sheet: {sheet_name}, skiprows: {skiprows}")
+            st.info(f"Reading Excel file, sheet: {sheet_name}, skiprows: {skiprows}")
             df = pd.read_excel(excel_file, sheet_name=sheet_name, skiprows=skiprows)
             
             # Clean column names
             df.columns = [col.strip() if isinstance(col, str) else col for col in df.columns]
             
             # Print column names to help with debugging
-            print(f"Columns in Excel file: {df.columns.tolist()}")
+            st.write(f"Columns in Excel file: {df.columns.tolist()}")
             
             # Print a sample of the data
-            print("Sample data from Excel file:")
-            print(df.head(3))
+            st.write("Sample data from Excel file:")
+            st.write(df.head(3))
             
             # Delete all existing products
             self.supabase.table('products').delete().execute()
@@ -63,7 +79,7 @@ class CloudDataLoader:
                 return [item['value'] for item in response.data if item['value'] is not None]
             return []
         except Exception as e:
-            print(f"Error getting unique values for {column}: {str(e)}")
+            st.error(f"Error getting unique values for {column}: {str(e)}")
             return []
     
     def get_filtered_products(self, supplier=None, product_group=None, colours=None, sizes=None):
@@ -92,7 +108,7 @@ class CloudDataLoader:
                 return pd.DataFrame(response.data)
             return pd.DataFrame()
         except Exception as e:
-            print(f"Error getting filtered products: {str(e)}")
+            st.error(f"Error getting filtered products: {str(e)}")
             return pd.DataFrame()
     
     def is_db_initialized(self):
@@ -107,5 +123,5 @@ class CloudDataLoader:
                 return response.count > 0
             return False
         except Exception as e:
-            print(f"Error checking if DB is initialized: {str(e)}")
+            st.error(f"Error checking if DB is initialized: {str(e)}")
             return False 
