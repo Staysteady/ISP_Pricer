@@ -124,7 +124,7 @@ class ServiceLoader:
         
         return False, f"Service with ID {service_id} not found"
     
-    def calculate_service_price(self, service_id, quantity, pricing_engine):
+    def calculate_service_price(self, service_id, quantity, pricing_engine, supplier=None, product_group=None, line_items=None):
         """Calculate final price for a service with quantity discount but no markup."""
         service, service_type = self.get_service_by_id(service_id)
         
@@ -135,7 +135,14 @@ class ServiceLoader:
         base_price = service.get("price", 0)
         
         # Apply quantity discount but not markup
-        discount_percent = pricing_engine.get_discount_for_quantity(quantity)
+        # Use bulk discount if supplier and product group info is provided
+        if supplier and product_group and line_items:
+            discount_percent = pricing_engine.get_bulk_discount_for_item(
+                supplier, product_group, line_items, quantity
+            )
+        else:
+            discount_percent = pricing_engine.get_discount_for_quantity(quantity)
+            
         discount_factor = 1 - (discount_percent / 100)
         total_price = base_price * quantity * discount_factor
         

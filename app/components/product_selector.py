@@ -183,7 +183,10 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
                             printing_price_data = service_loader.calculate_service_price(
                                 selected_printing_id, 
                                 quantity, 
-                                pricing_engine
+                                pricing_engine,
+                                supplier=supplier,
+                                product_group=product_group,
+                                line_items=st.session_state.get('line_items', [])
                             )
                 else:
                     st.info("No printing services defined yet. Add some in the settings.")
@@ -219,13 +222,25 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
                             embroidery_price_data = service_loader.calculate_service_price(
                                 selected_embroidery_id, 
                                 quantity, 
-                                pricing_engine
+                                pricing_engine,
+                                supplier=supplier,
+                                product_group=product_group,
+                                line_items=st.session_state.get('line_items', [])
                             )
                 else:
                     st.info("No embroidery services defined yet. Add some in the settings.")
         
-        # Calculate garment price with markup and quantity discounts
-        product_price_data = pricing_engine.calculate_price(base_price, quantity)
+        # Get existing line items
+        line_items = st.session_state.get('line_items', [])
+        
+        # Calculate garment price with markup and bulk quantity discounts for same supplier/product group
+        product_price_data = pricing_engine.calculate_price(
+            base_price, 
+            quantity,
+            supplier=supplier,
+            product_group=product_group,
+            line_items=line_items
+        )
         
         # Calculate total price including printing and embroidery if selected
         total_price = product_price_data['total_price']
@@ -262,6 +277,12 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
         with col2:
             st.metric("Quantity", quantity)
             st.metric("Discount", f"{product_price_data['discount_percent']}%")
+            
+            # Calculate and show the total quantity for this supplier and product group
+            total_group_quantity = pricing_engine.get_supplier_product_group_quantity(
+                supplier, product_group, line_items) + quantity
+            if total_group_quantity > quantity:
+                st.metric("Total Group Quantity", total_group_quantity)
         
         with col3:
             st.metric("Garment Total", f"£{product_price_data['total_price']:.2f}")
@@ -304,6 +325,10 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
             
             # Add the item to the session state using the add_line_item function
             add_line_item(item_data)
+            
+            # After adding item, recalculate discounts for all items based on the new bulk quantities
+            updated_items = pricing_engine.recalculate_discounts(st.session_state.line_items)
+            st.session_state.line_items = updated_items
             
             # Set a flag to reset the quantity on next render instead of directly setting the session state
             st.session_state.reset_quantity = quantity_key

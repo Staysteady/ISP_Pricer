@@ -25,6 +25,12 @@ def quote_summary(pricing_engine, cost_tracker=None):
     # Create a DataFrame from line items
     line_items = st.session_state.line_items
     
+    # Recalculate discounts for all line items based on bulk quantities
+    # This ensures that all items with the same supplier and product group get the same discount
+    updated_items = pricing_engine.recalculate_discounts(line_items)
+    st.session_state.line_items = updated_items
+    line_items = updated_items
+    
     # Get profitability data if cost_tracker is provided
     profit_data = None
     if cost_tracker:
