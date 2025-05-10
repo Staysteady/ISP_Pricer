@@ -1,6 +1,7 @@
 import pandas as pd
 import os
 import streamlit as st
+import io
 
 # Try to import Supabase with error handling
 try:
@@ -52,6 +53,11 @@ class CloudDataLoader:
                 
             # Read Excel file
             st.info(f"Reading Excel file, sheet: {sheet_name}, skiprows: {skiprows}")
+            
+            # Wrap bytes in BytesIO to avoid warning
+            if isinstance(excel_file, bytes):
+                excel_file = io.BytesIO(excel_file)
+            
             df = pd.read_excel(excel_file, sheet_name=sheet_name, skiprows=skiprows)
             
             # Clean column names
@@ -65,7 +71,15 @@ class CloudDataLoader:
             st.write(df.head(3))
             
             # Delete all existing products
-            self.supabase.table('products').delete().execute()
+            try:
+                # Use a WHERE clause that matches all records
+                self.supabase.table('products').delete().eq('id', 'id').execute()
+            except Exception as e:
+                # If that fails, try with a different approach
+                try:
+                    self.supabase.table('products').delete().neq('id', 0).execute()
+                except Exception as e2:
+                    st.warning(f"Could not delete existing products: {str(e2)}")
             
             # Convert DataFrame to dict and insert in batches
             records = df.to_dict('records')

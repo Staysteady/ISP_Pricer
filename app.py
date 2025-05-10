@@ -1,4 +1,5 @@
 import streamlit as st
+import io
 
 # Set page config - MUST BE FIRST STREAMLIT COMMAND
 st.set_page_config(
@@ -82,6 +83,11 @@ initialize_session_state()
 
 # Initialize components
 data_loader = DataLoader()
+
+# If we're in cloud mode but using fallback SQLite, show a warning
+if is_cloud and hasattr(data_loader, 'use_fallback') and data_loader.use_fallback:
+    st.warning("⚠️ Unable to connect to cloud database. Using local fallback storage instead. Your data will not be saved long-term.")
+
 pricing_engine = PricingEngine()
 service_loader = ServiceLoader()
 cost_tracker = CostTracker()
@@ -123,13 +129,15 @@ if app_mode == "Quoting Tool":
             data_upload(data_loader)
             
             # Check if we have the default file to auto-load
-            default_file = "ralawise-price-list---uk---2025---6th-april-2025.xlsx"
+            default_file = "cleaned_single_prices.xlsx"
             if os.path.exists(default_file) and st.button("Load Default Price List"):
                 with st.spinner("Loading default price list..."):
                     if is_cloud:
                         # For cloud deployment, read the file and pass it directly
                         with open(default_file, "rb") as f:
-                            excel_file = f.read()
+                            excel_data = f.read()
+                            # Use BytesIO to avoid deprecation warning
+                            excel_file = io.BytesIO(excel_data)
                         success, message = data_loader.load_excel_to_db(excel_file)
                     else:
                         # For local deployment, pass the file path

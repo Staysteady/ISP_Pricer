@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import tempfile
 import pandas as pd
+import io
 
 def data_upload(data_loader):
     """
@@ -78,9 +79,11 @@ def data_upload(data_loader):
         if st.button("Process Price List"):
             with st.spinner("Processing price list..."):
                 if is_cloud:
-                    # For cloud mode, pass the file directly
+                    # For cloud mode, wrap file in BytesIO to avoid deprecation warning
+                    excel_data = uploaded_file.getvalue()
+                    excel_file = io.BytesIO(excel_data)
                     success, message = data_loader.load_excel_to_db(
-                        uploaded_file, 
+                        excel_file, 
                         sheet_name=sheet_name,
                         skiprows=skip_rows
                     )
