@@ -365,190 +365,72 @@ class CostTracker:
         return None
     
     def calculate_line_item_costs(self, line_item):
-        """Calculate the actual costs for a single line item."""
+        """Calculate simple profit margin: supplier cost vs client revenue."""
         
-        # Debug logging
-        print(f"DEBUG: Calculating costs for line item:")
-        print(f"  base_price: {line_item.get('base_price', 'MISSING')}")
-        print(f"  unit_price: {line_item.get('unit_price', 'MISSING')}")
-        print(f"  total_price: {line_item.get('total_price', 'MISSING')}")
-        print(f"  quantity: {line_item.get('quantity', 'MISSING')}")
-        print(f"  has_embroidery: {line_item.get('has_embroidery', 'MISSING')}")
-        print(f"  embroidery_service_id: {line_item.get('embroidery_service_id', 'MISSING')}")
+        # Get basic data
+        base_price = line_item.get("base_price", 0)
+        quantity = line_item.get("quantity", 0)
+        total_revenue = line_item.get("total_price", 0)
         
-        item_costs = {
-            "product_cost": 0,
-            "printing_costs": 0,
-            "embroidery_costs": 0,
+        # Calculate supplier costs only
+        supplier_product_cost = base_price * quantity
+        
+        # Add service costs (these are also supplier costs)
+        printing_service_cost = 0
+        embroidery_service_cost = 0
+        
+        # Get printing service costs if present
+        if line_item.get("has_printing", False):
+            printing_service_id = line_item.get("printing_service_id")
+            if printing_service_id:
+                service_cost = self._get_service_cost_from_file(printing_service_id)
+                if service_cost is not None:
+                    printing_service_cost = service_cost * quantity
+        
+        # Get embroidery service costs if present
+        if line_item.get("has_embroidery", False):
+            embroidery_service_id = line_item.get("embroidery_service_id")
+            if embroidery_service_id:
+                service_cost = self._get_service_cost_from_file(embroidery_service_id)
+                if service_cost is not None:
+                    embroidery_service_cost = service_cost * quantity
+        
+        # Legacy service handling for backwards compatibility
+        if not line_item.get("has_printing", False) and not line_item.get("has_embroidery", False):
+            services = line_item.get("services", [])
+            for service in services:
+                service_id = service.get("id", "")
+                if service_id.startswith("print_"):
+                    service_cost = self._get_service_cost_from_file(service_id)
+                    if service_cost is not None:
+                        printing_service_cost += service_cost * quantity
+                elif service_id.startswith("emb_"):
+                    service_cost = self._get_service_cost_from_file(service_id)
+                    if service_cost is not None:
+                        embroidery_service_cost += service_cost * quantity
+        
+        # Total supplier cost
+        total_supplier_cost = supplier_product_cost + printing_service_cost + embroidery_service_cost
+        
+        # Calculate profit and margin
+        profit = total_revenue - total_supplier_cost
+        profit_margin = (profit / total_revenue * 100) if total_revenue > 0 else 0
+        
+        # Return simplified cost structure
+        return {
+            "product_cost": round(supplier_product_cost, 2),
+            "printing_costs": round(printing_service_cost, 2),
+            "embroidery_costs": round(embroidery_service_cost, 2),
             "material_costs": 0,
             "electricity_costs": 0,
             "labor_costs": 0,
             "waste_costs": 0,
             "depreciation_costs": 0,
-            "total_cost": 0
+            "total_cost": round(total_supplier_cost, 2),
+            "revenue": total_revenue,
+            "profit": round(profit, 2),
+            "profit_margin": round(profit_margin, 2)
         }
-        
-        # Get product cost (base cost) - this should ALWAYS be the wholesale price before markup
-        base_price = line_item.get("base_price", 0)
-        unit_price = line_item.get("unit_price", 0)
-        
-        # The issue: base_price might actually be the marked-up price already
-        # We need to derive the TRUE wholesale cost
-        
-        # If we have markup_percent in the line item, use it to get actual wholesale cost
-        markup_percent = line_item.get("markup_percent", 0)
-        
-        if markup_percent > 0 and unit_price > 0:
-            # Calculate true wholesale cost by removing markup
-            # unit_price = wholesale_price * (1 + markup/100)
-            # so wholesale_price = unit_price / (1 + markup/100)
-            markup_factor = 1 + (markup_percent / 100)
-            
-            # But we need to account for printing/embroidery costs too
-            printing_cost = line_item.get("printing_unit_price", 0)
-            embroidery_cost = line_item.get("embroidery_unit_price", 0)
-            service_costs = printing_cost + embroidery_cost
-            
-            # The unit_price includes markup on garment but services are at cost
-            # So: unit_price = (garment_wholesale * markup_factor) + service_costs
-            # Therefore: true_wholesale = (unit_price - service_costs) / markup_factor
-            true_wholesale = (unit_price - service_costs) / markup_factor if markup_factor > 0 else base_price
-            
-            print(f"DEBUG: Calculating true wholesale cost:")
-            print(f"  unit_price: £{unit_price:.2f}")
-            print(f"  service_costs: £{service_costs:.2f}")
-            print(f"  markup_percent: {markup_percent}%")
-            print(f"  markup_factor: {markup_factor}")
-            print(f"  true_wholesale: £{true_wholesale:.2f}")
-            print(f"  original_base_price: £{base_price:.2f}")
-            
-            base_price = true_wholesale
-        else:
-            print(f"DEBUG: Using original base_price: £{base_price:.2f} (no markup calculation)")
-        
-        # If still 0, use fallback
-        if base_price <= 0:
-            base_price = unit_price / 1.5 if unit_price > 0 else 0
-            print(f"WARNING: Using fallback wholesale estimate: £{base_price:.2f}")
-        
-        product_cost = base_price * line_item.get("quantity", 0)
-        item_costs["product_cost"] = round(product_cost, 2)
-        print(f"DEBUG: Final product cost = £{base_price:.2f} × {line_item.get('quantity', 0)} = £{product_cost:.2f}")
-        
-        # Handle printing service directly from line_item (if present)
-        if line_item.get("has_printing", False):
-            printing_service_id = line_item.get("printing_service_id")
-            
-            # Look up the actual service to get its cost
-            if printing_service_id:
-                # First try to get cost from services file
-                service_cost = self._get_service_cost_from_file(printing_service_id)
-                
-                if service_cost is not None:
-                    item_costs["printing_costs"] = service_cost * line_item.get("quantity", 0)
-                else:
-                    # If not in file, try database or calculate
-                    conn = sqlite3.connect(self.db_path)
-                    cursor = conn.cursor()
-                    
-                    # Get the printing service details
-                    cursor.execute("SELECT * FROM services WHERE id = ?", (printing_service_id,))
-                    service = cursor.fetchone()
-                    
-                    # If service exists in database, use its cost
-                    if service and len(service) > 3:
-                        service_cost = service[3]  # Assuming cost is in position 3
-                        item_costs["printing_costs"] = service_cost * line_item.get("quantity", 0)
-                    else:
-                        # If not in database, calculate it based on service ID pattern
-                        item_costs["printing_costs"] = self._calculate_printing_costs(
-                            printing_service_id, 
-                            line_item.get("quantity", 0)
-                        )
-                    
-                    conn.close()
-        
-        # Handle embroidery service directly from line_item (if present)
-        if line_item.get("has_embroidery", False):
-            embroidery_service_id = line_item.get("embroidery_service_id")
-            
-            # Look up the actual service to get its cost
-            if embroidery_service_id:
-                # First try to get cost from services file
-                service_cost = self._get_service_cost_from_file(embroidery_service_id)
-                
-                if service_cost is not None:
-                    item_costs["embroidery_costs"] = service_cost * line_item.get("quantity", 0)
-                else:
-                    # If not in file, try database or calculate
-                    conn = sqlite3.connect(self.db_path)
-                    cursor = conn.cursor()
-                    
-                    # Get the embroidery service details
-                    cursor.execute("SELECT * FROM services WHERE id = ?", (embroidery_service_id,))
-                    service = cursor.fetchone()
-                    
-                    # If service exists in database, use its cost
-                    if service and len(service) > 3:
-                        service_cost = service[3]  # Assuming cost is in position 3
-                        item_costs["embroidery_costs"] = service_cost * line_item.get("quantity", 0)
-                    else:
-                        # If not in database, calculate it based on service ID pattern
-                        item_costs["embroidery_costs"] = self._calculate_embroidery_costs(
-                            embroidery_service_id, 
-                            line_item.get("quantity", 0)
-                        )
-                    
-                    conn.close()
-        
-        # Calculate service costs based on selected services (legacy approach for backwards compatibility)
-        if not line_item.get("has_printing", False) and not line_item.get("has_embroidery", False):
-            services = line_item.get("services", [])
-            
-            for service in services:
-                service_id = service.get("id", "")
-                service_cost = 0
-                
-                # Calculate printing costs
-                if service_id.startswith("print_"):
-                    service_cost += self._calculate_printing_costs(service_id, line_item.get("quantity", 0))
-                    item_costs["printing_costs"] += service_cost
-                    
-                # Calculate embroidery costs
-                elif service_id.startswith("emb_"):
-                    service_cost += self._calculate_embroidery_costs(service_id, line_item.get("quantity", 0))
-                    item_costs["embroidery_costs"] += service_cost
-        
-        # Calculate labor costs
-        item_costs["labor_costs"] = self._calculate_labor_costs(line_item)
-        
-        # Apply waste factors
-        material_total = item_costs["printing_costs"] + item_costs["embroidery_costs"] + item_costs["material_costs"]
-        waste_cost = self._calculate_waste_costs(material_total)
-        item_costs["waste_costs"] = waste_cost
-        
-        # Add depreciation costs
-        depreciation_cost = self._calculate_depreciation_costs(line_item)
-        item_costs["depreciation_costs"] = depreciation_cost
-        
-        # Calculate total cost
-        item_costs["total_cost"] = sum([
-            item_costs["product_cost"],
-            item_costs["printing_costs"],
-            item_costs["embroidery_costs"],
-            item_costs["material_costs"],
-            item_costs["electricity_costs"],
-            item_costs["labor_costs"],
-            item_costs["waste_costs"],
-            item_costs["depreciation_costs"]
-        ])
-        
-        # Calculate profit
-        item_costs["revenue"] = line_item.get("total_price", 0)
-        item_costs["profit"] = round(item_costs["revenue"] - item_costs["total_cost"], 2)
-        item_costs["profit_margin"] = round((item_costs["profit"] / item_costs["revenue"]) * 100, 2) if item_costs["revenue"] > 0 else 0
-        
-        return item_costs
     
     def _calculate_printing_costs(self, service_id, quantity):
         """Calculate printing costs including electricity, materials, etc."""
