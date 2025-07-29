@@ -25,25 +25,22 @@ Your application has been enhanced and is now completely self-contained with all
 - App name: `inkstitchpress-pricer` (or your preferred name)
 - App URL will be: `https://inkstitchpress-pricer.streamlit.app`
 
-### 4. Add Secrets Configuration
-In the Streamlit Cloud dashboard, go to your app settings and add these secrets:
+### 4. Add Secrets Configuration (Optional)
+In the Streamlit Cloud dashboard, go to your app settings and add these secrets (only if you want email functionality):
 
 ```toml
-# Environment flags
+# Environment flag (for self-contained app)
 DEPLOYED = true
-IS_CLOUD = true
 
-# Supabase connection (for cloud database sync)
-SUPABASE_URL = "https://oxgfxjhdguultqqrbwxa.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94Z2Z4amhkZ3V1bHRxcXJid3hhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYyMTg0MzQsImV4cCI6MjA2MTc5NDQzNH0.IAloyZDavDSkIyat3n9-DweNK65WhttTymfT7VzUqS4"
-
-# Email configuration (optional - for quote sending)
-EMAIL_HOST = "smtp.gmail.com"
-EMAIL_PORT = 587
-EMAIL_USERNAME = "your-email@gmail.com"
-EMAIL_PASSWORD = "your-app-password"
-EMAIL_FROM = "InkStitchPress <your-email@gmail.com>"
+# Email configuration (optional - only needed for quote sending via email)
+# EMAIL_HOST = "smtp.gmail.com"
+# EMAIL_PORT = 587
+# EMAIL_USERNAME = "your-email@gmail.com"
+# EMAIL_PASSWORD = "your-app-password"
+# EMAIL_FROM = "InkStitchPress <your-email@gmail.com>"
 ```
+
+**Note: The app now works completely without any secrets! The above is only needed for email functionality.**
 
 ### 5. Deploy
 - Click "Deploy"
@@ -52,10 +49,10 @@ EMAIL_FROM = "InkStitchPress <your-email@gmail.com>"
 ## 🎉 What's New in This Version
 
 ### Enhanced Features:
-- **Self-Contained Data**: 95,882 products included in app (no external Excel dependency)
+- **Self-Contained Data**: 95,882 products included in app (no external dependencies)
 - **Enhanced Cost Tracking**: Vehicle costs, depreciation, waste factors, labor tracking
 - **Improved Product Selection**: Brand-based filtering with better categorization
-- **Cloud-Ready**: Optimized for web deployment with Supabase integration
+- **Cloud-Ready**: Completely self-contained, no external database required
 
 ### User Experience:
 - **Login**: Username: `Kelly`, Password: `JUBS`

@@ -59,6 +59,11 @@ class DataLoader:
             # Create SQLite connection
             conn = sqlite3.connect(self.db_path)
             
+            # Clear existing products table and create fresh
+            cursor = conn.cursor()
+            cursor.execute('DROP TABLE IF EXISTS products')
+            conn.commit()
+            
             # Save data to SQLite
             df.to_sql('products', conn, if_exists='replace', index=False)
             

@@ -27,15 +27,12 @@ try:
 except:
     is_cloud = False
 
-# Import appropriate data loader
+# Always use local data loader (self-contained mode)
+from app.utils.data_loader import DataLoader
 if is_cloud:
-    # Import cloud version
-    from app.utils.cloud_data_loader import CloudDataLoader as DataLoader
-    st.write("🌥️ Running in cloud mode with Supabase database")
+    st.write("🌥️ Running in cloud mode with self-contained data")
 else:
-    # Import local version
-    from app.utils.data_loader import DataLoader
-    st.write("💻 Running in local mode with SQLite database")
+    st.write("💻 Running in local mode with self-contained data")
 
 from app.utils.pricing_engine import PricingEngine
 from app.utils.service_loader import ServiceLoader
