@@ -42,14 +42,21 @@ class CloudDataLoader:
             self.supabase = create_client(self.supabase_url, self.supabase_key)
             st.success("Connected to Supabase")
         except Exception as e:
-            st.error(f"Failed to connect to Supabase: {str(e)}")
-            st.info("Please check your Supabase URL and key in the Streamlit secrets.")
+            st.warning(f"Supabase connection failed: {str(e)}")
+            st.info("🔄 Falling back to internal data mode - application will work normally")
+            self.supabase = None
     
     def load_excel_to_db(self, excel_file=None, sheet_name='Customer_Specific_Pricing_Stand', skiprows=0):
         """Load the Excel pricing data into Supabase database."""
         try:
             if not self.supabase:
-                return False, "Supabase connection not initialized"
+                # If no Supabase connection, just verify we have internal data
+                json_path = 'app/data/products_data.json'
+                if os.path.exists(json_path):
+                    st.info("🔄 Using internal product data (Supabase unavailable)")
+                    return True, "Internal product data available - application ready"
+                else:
+                    return False, "No Supabase connection and no internal data available"
             
             # Use internal JSON file instead of Excel
             if excel_file is None:
@@ -145,7 +152,8 @@ class CloudDataLoader:
         """Get unique values for a specific column from the database."""
         try:
             if not self.supabase:
-                return []
+                # Fallback to internal data
+                return self._get_unique_values_from_json(column)
                 
             response = self.supabase.rpc(
                 'get_unique_values', 
@@ -157,13 +165,15 @@ class CloudDataLoader:
             return []
         except Exception as e:
             st.error(f"Error getting unique values for {column}: {str(e)}")
-            return []
+            # Fallback to internal data on error
+            return self._get_unique_values_from_json(column)
     
     def get_filtered_products(self, brand=None, product_group=None, primary_category=None, product_name=None):
         """Get products filtered by the selected criteria."""
         try:
             if not self.supabase:
-                return pd.DataFrame()
+                # Fallback to internal data
+                return self._get_filtered_products_from_json(brand, product_group, primary_category, product_name)
                 
             query = self.supabase.table('products').select('*')
             
@@ -189,11 +199,19 @@ class CloudDataLoader:
             return results_df
         except Exception as e:
             st.error(f"Error getting filtered products: {str(e)}")
-            return pd.DataFrame()
+            # Fallback to internal data on error
+            return self._get_filtered_products_from_json(brand, product_group, primary_category, product_name)
     
     def is_db_initialized(self):
         """Check if the database has been initialized with product data."""
         try:
+            # First check if we have internal JSON data available
+            json_path = 'app/data/products_data.json'
+            if os.path.exists(json_path):
+                # If we have internal data, consider it initialized
+                return True
+            
+            # If no internal data, try Supabase
             if not self.supabase:
                 return False
                 
@@ -203,5 +221,59 @@ class CloudDataLoader:
                 return response.count > 0
             return False
         except Exception as e:
+            # If Supabase fails but we have internal data, still return True
+            json_path = 'app/data/products_data.json'
+            if os.path.exists(json_path):
+                return True
             st.error(f"Error checking if DB is initialized: {str(e)}")
-            return False 
+            return False
+    
+    def _get_unique_values_from_json(self, column):
+        """Get unique values from internal JSON data as fallback."""
+        try:
+            json_path = 'app/data/products_data.json'
+            if not os.path.exists(json_path):
+                return []
+            
+            import json
+            with open(json_path, 'r') as f:
+                data = json.load(f)
+            
+            df = pd.DataFrame(data['products'])
+            if column in df.columns:
+                return sorted(df[column].dropna().unique().tolist())
+            return []
+        except Exception as e:
+            st.error(f"Error reading internal data for {column}: {str(e)}")
+            return []
+    
+    def _get_filtered_products_from_json(self, brand=None, product_group=None, primary_category=None, product_name=None):
+        """Get filtered products from internal JSON data as fallback."""
+        try:
+            json_path = 'app/data/products_data.json'
+            if not os.path.exists(json_path):
+                return pd.DataFrame()
+            
+            import json
+            with open(json_path, 'r') as f:
+                data = json.load(f)
+            
+            df = pd.DataFrame(data['products'])
+            
+            # Apply filters
+            if brand:
+                df = df[df['Brand'] == brand]
+            
+            if product_group:
+                df = df[df['Product Group'] == product_group]
+            
+            if primary_category:
+                df = df[df['Primary Category'] == primary_category]
+            
+            if product_name:
+                df = df[df['Product Name'].str.contains(product_name, case=False, na=False)]
+            
+            return df
+        except Exception as e:
+            st.error(f"Error filtering internal data: {str(e)}")
+            return pd.DataFrame() 
