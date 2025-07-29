@@ -117,6 +117,27 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
     else:
         web_size = None
     
+    # Third row for Color selection
+    if brand and product_group and web_size:
+        # Get available Colors for the current selection
+        filtered_df = data_loader.get_filtered_products(
+            brand=brand, 
+            product_group=product_group,
+            primary_category=primary_category if primary_category else None,
+            product_name=product_name_filter if product_name_filter else None,
+            web_size=web_size
+        )
+        
+        colours = []
+        if not filtered_df.empty and "Colour Name" in filtered_df.columns:
+            colours = sorted(filtered_df["Colour Name"].unique().tolist())
+            if "Colour Name" in st.session_state and st.session_state["Colour Name"] not in colours:
+                st.session_state["Colour Name"] = ""
+        
+        colour_name = st.selectbox("Colour", [""] + colours, key="Colour Name")
+    else:
+        colour_name = None
+    
     # Get product details if required filters are selected
     selected_product = None
     if brand and product_group:
@@ -125,7 +146,8 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
             product_group=product_group,
             primary_category=primary_category if primary_category else None,
             product_name=product_name_filter if product_name_filter else None,
-            web_size=web_size if web_size else None
+            web_size=web_size if web_size else None,
+            colour_name=colour_name if colour_name else None
         )
         
         if not filtered_df.empty:
@@ -135,7 +157,8 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
                 for idx, row in filtered_df.iterrows():
                     # Use the appropriate size column for display
                     size_value = row.get('Web Size', row.get('Size Range', 'N/A'))
-                    display_name = f"{row['Product Name']} - {size_value}"
+                    colour_value = row.get('Colour Name', 'N/A')
+                    display_name = f"{row['Product Name']} - {size_value} - {colour_value}"
                     product_options[display_name] = idx
                 
                 selected_display_name = st.selectbox("Select Product", list(product_options.keys()), key="product_selection")
@@ -159,6 +182,9 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
                 size_value = selected_product.get('Web Size', selected_product.get('Size Range', 'N/A'))
                 size_label = 'Web Size' if 'Web Size' in selected_product else 'Size Range'
                 st.markdown(f"**{size_label}:** {size_value}")
+                # Display color information
+                colour_value = selected_product.get('Colour Name', 'N/A')
+                st.markdown(f"**Colour:** {colour_value}")
                 
                 # Use the 'Price' column (renamed from 'Cust Single Price')
                 if 'Price' in selected_product:
@@ -177,9 +203,10 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
         st.divider()
         
         # Generate a unique key for the quantity input
-        # Use appropriate size column for the quantity key
+        # Use appropriate size column and color for the quantity key
         size_value = selected_product.get('Web Size', selected_product.get('Size Range', 'N/A'))
-        quantity_key = f"quantity_input_{selected_product['Product Group']}_{selected_product['Product Name']}_{size_value}"
+        colour_value = selected_product.get('Colour Name', 'N/A')
+        quantity_key = f"quantity_input_{selected_product['Product Group']}_{selected_product['Product Name']}_{size_value}_{colour_value}"
         
         # Check if we need to reset the quantity (after adding an item)
         if "reset_quantity" in st.session_state and st.session_state.reset_quantity == quantity_key:
@@ -360,6 +387,8 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
                 "product_name": selected_product['Product Name'],
                 "primary_category": selected_product['Primary Category'],
                 "web_size": selected_product.get('Web Size', selected_product.get('Size Range', 'N/A')),
+                "colour_name": selected_product.get('Colour Name', 'N/A'),
+                "colour_code": selected_product.get('Colour Code', 'N/A'),
                 "base_price": base_price,                  # Store base price but don't display
                 "unit_price": product_price_data['unit_price'],    # This is the marked-up price
                 "quantity": quantity,

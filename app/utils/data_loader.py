@@ -36,7 +36,7 @@ class DataLoader:
             df = pd.DataFrame(data['products'])
             
             # Ensure all required columns exist
-            required_columns = ['Product Group', 'Brand', 'Price', 'Primary Category', 'Product Name', 'Web Size']
+            required_columns = ['Product Group', 'Brand', 'Price', 'Primary Category', 'Product Name', 'Web Size', 'Colour Name', 'Colour Code']
             missing_columns = [col for col in required_columns if col not in df.columns]
             if missing_columns:
                 return False, f"Missing required columns in internal data: {missing_columns}"
@@ -74,6 +74,7 @@ class DataLoader:
             c.execute('CREATE INDEX IF NOT EXISTS idx_primary_category ON products ("Primary Category")')
             c.execute('CREATE INDEX IF NOT EXISTS idx_product_name ON products ("Product Name")')
             c.execute('CREATE INDEX IF NOT EXISTS idx_web_size ON products ("Web Size")')
+            c.execute('CREATE INDEX IF NOT EXISTS idx_colour_name ON products ("Colour Name")')
             conn.commit()
             conn.close()
             
@@ -93,7 +94,7 @@ class DataLoader:
             print(f"Error getting unique values for {column}: {str(e)}")
             return []
     
-    def get_filtered_products(self, brand=None, product_group=None, primary_category=None, product_name=None, web_size=None):
+    def get_filtered_products(self, brand=None, product_group=None, primary_category=None, product_name=None, web_size=None, colour_name=None):
         """Get products filtered by the selected criteria."""
         try:
             conn = sqlite3.connect(self.db_path)
@@ -131,6 +132,18 @@ class DataLoader:
                 elif "Size Range" in columns:
                     query += ' AND "Size Range" = ?'
                     params.append(web_size)
+            
+            if colour_name:
+                # Check if Colour Name column exists
+                conn_check = sqlite3.connect(self.db_path)
+                cursor_check = conn_check.cursor()
+                cursor_check.execute("PRAGMA table_info(products)")
+                columns = [col[1] for col in cursor_check.fetchall()]
+                conn_check.close()
+                
+                if "Colour Name" in columns:
+                    query += ' AND "Colour Name" = ?'
+                    params.append(colour_name)
             
             print(f"SQL Query: {query}")
             print(f"Parameters: {params}")

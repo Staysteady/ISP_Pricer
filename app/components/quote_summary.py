@@ -95,8 +95,9 @@ def quote_summary(pricing_engine, cost_tracker=None):
                 "Supplier": item["supplier"],
                 "Product": product_desc,
                 "Style No": item.get("product_name", "N/A"),
-                "Colour": item.get("primary_category", "N/A"),
+                "Category": item.get("primary_category", "N/A"),
                 "Size": item.get("web_size", "N/A"),
+                "Colour": item.get("colour_name", "N/A"),
                 "Unit Price": f"£{item['unit_price']:.2f}",
                 "Quantity": item["quantity"],
                 "Discount": f"{item['discount_percent']}%",
@@ -124,8 +125,9 @@ def quote_summary(pricing_engine, cost_tracker=None):
         "Supplier": st.column_config.TextColumn("Supplier"),
         "Product": st.column_config.TextColumn("Product"),
         "Style No": st.column_config.TextColumn("Style No"),
-        "Colour": st.column_config.TextColumn("Colour"),
+        "Category": st.column_config.TextColumn("Category"),
         "Size": st.column_config.TextColumn("Size"),
+        "Colour": st.column_config.TextColumn("Colour"),
         "Unit Price": st.column_config.TextColumn("Unit Price"),
         "Quantity": st.column_config.NumberColumn("Quantity"),
         "Discount": st.column_config.TextColumn("Discount"),
@@ -249,6 +251,7 @@ def show_line_item_details(item_id, cost_tracker=None, show_profit=False):
                 st.markdown(f"**Product Group:** {item.get('product_group', 'N/A')}")
                 st.markdown(f"**Category:** {item.get('primary_category', 'N/A')}")
                 st.markdown(f"**Web Size:** {item.get('web_size', 'N/A')}")
+                st.markdown(f"**Colour:** {item.get('colour_name', 'N/A')}")
             
             with col2:
                 st.markdown(f"**Quantity:** {item['quantity']}")

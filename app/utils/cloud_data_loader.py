@@ -93,7 +93,7 @@ class CloudDataLoader:
                     df = pd.read_excel(excel_file, sheet_name=sheet_name, header=1)
                 
                 # Select only the required columns
-                required_columns = ['Product Group', 'Brand', 'Cust Single Price', 'Primary Category', 'Product Name', 'Web Size']
+                required_columns = ['Product Group', 'Brand', 'Cust Single Price', 'Primary Category', 'Product Name', 'Web Size', 'Colour Name', 'Colour Code']
                 
                 # Check if all required columns exist
                 missing_columns = [col for col in required_columns if col not in df.columns]
@@ -107,7 +107,7 @@ class CloudDataLoader:
                 df.rename(columns={'Cust Single Price': 'Price'}, inplace=True)
             
             # Ensure all required columns exist
-            required_columns = ['Product Group', 'Brand', 'Price', 'Primary Category', 'Product Name', 'Web Size']
+            required_columns = ['Product Group', 'Brand', 'Price', 'Primary Category', 'Product Name', 'Web Size', 'Colour Name', 'Colour Code']
             missing_columns = [col for col in required_columns if col not in df.columns]
             if missing_columns:
                 return False, f"Missing required columns in data: {missing_columns}"
@@ -168,12 +168,12 @@ class CloudDataLoader:
             # Fallback to internal data on error
             return self._get_unique_values_from_json(column)
     
-    def get_filtered_products(self, brand=None, product_group=None, primary_category=None, product_name=None, web_size=None):
+    def get_filtered_products(self, brand=None, product_group=None, primary_category=None, product_name=None, web_size=None, colour_name=None):
         """Get products filtered by the selected criteria."""
         try:
             if not self.supabase:
                 # Fallback to internal data
-                return self._get_filtered_products_from_json(brand, product_group, primary_category, product_name, web_size)
+                return self._get_filtered_products_from_json(brand, product_group, primary_category, product_name, web_size, colour_name)
                 
             query = self.supabase.table('products').select('*')
             
@@ -192,6 +192,9 @@ class CloudDataLoader:
             if web_size:
                 query = query.eq('Web Size', web_size)
             
+            if colour_name:
+                query = query.eq('Colour Name', colour_name)
+            
             # Execute the query
             response = query.execute()
             results_df = pd.DataFrame()
@@ -203,7 +206,7 @@ class CloudDataLoader:
         except Exception as e:
             st.error(f"Error getting filtered products: {str(e)}")
             # Fallback to internal data on error
-            return self._get_filtered_products_from_json(brand, product_group, primary_category, product_name, web_size)
+            return self._get_filtered_products_from_json(brand, product_group, primary_category, product_name, web_size, colour_name)
     
     def is_db_initialized(self):
         """Check if the database has been initialized with product data."""
@@ -250,7 +253,7 @@ class CloudDataLoader:
             st.error(f"Error reading internal data for {column}: {str(e)}")
             return []
     
-    def _get_filtered_products_from_json(self, brand=None, product_group=None, primary_category=None, product_name=None, web_size=None):
+    def _get_filtered_products_from_json(self, brand=None, product_group=None, primary_category=None, product_name=None, web_size=None, colour_name=None):
         """Get filtered products from internal JSON data as fallback."""
         try:
             json_path = 'app/data/products_data.json'
@@ -278,6 +281,9 @@ class CloudDataLoader:
             
             if web_size:
                 df = df[df['Web Size'] == web_size]
+            
+            if colour_name:
+                df = df[df['Colour Name'] == colour_name]
             
             return df
         except Exception as e:

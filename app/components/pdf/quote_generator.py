@@ -311,7 +311,8 @@ class QuoteGenerator:
             product_name = item.get('product_name', item.get('product_group', 'Unknown'))
             primary_category = item.get('primary_category', 'N/A')
             web_size = item.get('web_size', 'N/A')
-            description = f"{product_name} - {primary_category} - {web_size}"
+            colour_name = item.get('colour_name', 'N/A')
+            description = f"{product_name} - {primary_category} - {web_size} - {colour_name}"
             
             # Add decoration details if present
             if has_printing or has_embroidery:
