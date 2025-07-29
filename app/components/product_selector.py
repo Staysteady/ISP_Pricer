@@ -16,6 +16,39 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
     """
     st.subheader("Product Selection")
     
+    # Check if we're using old Size Range structure and show refresh option
+    try:
+        import sqlite3
+        conn = sqlite3.connect(data_loader.db_path)
+        cursor = conn.cursor()
+        cursor.execute("PRAGMA table_info(products)")
+        columns = [col[1] for col in cursor.fetchall()]
+        conn.close()
+        
+        if "Size Range" in columns and "Web Size" not in columns:
+            st.warning("⚠️ Currently using old Size Range structure. Click below to update to individual sizes.")
+            if st.button("🔄 Update to Individual Sizes (Web Size)", type="primary"):
+                with st.spinner("Updating to individual sizes..."):
+                    # Force clear the database first
+                    try:
+                        import os
+                        if os.path.exists(data_loader.db_path):
+                            os.remove(data_loader.db_path)
+                    except Exception as e:
+                        st.warning(f"Could not clear old database: {e}")
+                    
+                    success, message = data_loader.load_excel_to_db()
+                    if success:
+                        st.success("✅ Updated to individual sizes! Please refresh the page.")
+                        st.balloons()
+                        st.rerun()
+                    else:
+                        st.error("❌ " + message)
+                return None
+                        
+    except Exception as e:
+        pass  # Continue normally if database check fails
+    
     col1, col2 = st.columns(2)
     
     with col1:
