@@ -366,6 +366,16 @@ class CostTracker:
     
     def calculate_line_item_costs(self, line_item):
         """Calculate the actual costs for a single line item."""
+        
+        # Debug logging
+        print(f"DEBUG: Calculating costs for line item:")
+        print(f"  base_price: {line_item.get('base_price', 'MISSING')}")
+        print(f"  unit_price: {line_item.get('unit_price', 'MISSING')}")
+        print(f"  total_price: {line_item.get('total_price', 'MISSING')}")
+        print(f"  quantity: {line_item.get('quantity', 'MISSING')}")
+        print(f"  has_embroidery: {line_item.get('has_embroidery', 'MISSING')}")
+        print(f"  embroidery_service_id: {line_item.get('embroidery_service_id', 'MISSING')}")
+        
         item_costs = {
             "product_cost": 0,
             "printing_costs": 0,
