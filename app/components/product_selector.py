@@ -61,11 +61,26 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
         
         web_sizes = []
         if not filtered_df.empty:
-            web_sizes = sorted(filtered_df["Web Size"].unique().tolist())
-            if "Web Size" in st.session_state and st.session_state["Web Size"] not in web_sizes:
-                st.session_state["Web Size"] = ""
+            # Check if Web Size column exists, fallback to Size Range if not
+            if "Web Size" in filtered_df.columns:
+                web_sizes = sorted(filtered_df["Web Size"].unique().tolist())
+                size_column = "Web Size"
+            elif "Size Range" in filtered_df.columns:
+                web_sizes = sorted(filtered_df["Size Range"].unique().tolist())
+                size_column = "Size Range"
+            else:
+                web_sizes = []
+                size_column = None
+                
+            if size_column and size_column in st.session_state and st.session_state[size_column] not in web_sizes:
+                st.session_state[size_column] = ""
         
-        web_size = st.selectbox("Web Size", [""] + web_sizes, key="Web Size")
+        # Use appropriate label based on available column  
+        if not filtered_df.empty:
+            size_label = "Web Size" if "Web Size" in filtered_df.columns else "Size Range"
+        else:
+            size_label = "Web Size"
+        web_size = st.selectbox(size_label, [""] + web_sizes, key="Web Size")
     else:
         web_size = None
     
@@ -85,7 +100,9 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
             if len(filtered_df) > 1:
                 product_options = {}
                 for idx, row in filtered_df.iterrows():
-                    display_name = f"{row['Product Name']} - {row['Web Size']}"
+                    # Use the appropriate size column for display
+                    size_value = row.get('Web Size', row.get('Size Range', 'N/A'))
+                    display_name = f"{row['Product Name']} - {size_value}"
                     product_options[display_name] = idx
                 
                 selected_display_name = st.selectbox("Select Product", list(product_options.keys()), key="product_selection")
@@ -105,7 +122,10 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
             
             with col2:
                 st.markdown(f"**Primary Category:** {selected_product['Primary Category']}")
-                st.markdown(f"**Web Size:** {selected_product['Web Size']}")
+                # Display the appropriate size column
+                size_value = selected_product.get('Web Size', selected_product.get('Size Range', 'N/A'))
+                size_label = 'Web Size' if 'Web Size' in selected_product else 'Size Range'
+                st.markdown(f"**{size_label}:** {size_value}")
                 
                 # Use the 'Price' column (renamed from 'Cust Single Price')
                 if 'Price' in selected_product:
@@ -124,7 +144,9 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
         st.divider()
         
         # Generate a unique key for the quantity input
-        quantity_key = f"quantity_input_{selected_product['Product Group']}_{selected_product['Product Name']}_{selected_product['Web Size']}"
+        # Use appropriate size column for the quantity key
+        size_value = selected_product.get('Web Size', selected_product.get('Size Range', 'N/A'))
+        quantity_key = f"quantity_input_{selected_product['Product Group']}_{selected_product['Product Name']}_{size_value}"
         
         # Check if we need to reset the quantity (after adding an item)
         if "reset_quantity" in st.session_state and st.session_state.reset_quantity == quantity_key:
@@ -304,7 +326,7 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
                 "product_group": product_group,
                 "product_name": selected_product['Product Name'],
                 "primary_category": selected_product['Primary Category'],
-                "web_size": selected_product['Web Size'],
+                "web_size": selected_product.get('Web Size', selected_product.get('Size Range', 'N/A')),
                 "base_price": base_price,                  # Store base price but don't display
                 "unit_price": product_price_data['unit_price'],    # This is the marked-up price
                 "quantity": quantity,

@@ -155,6 +155,17 @@ if app_mode == "Quoting Tool":
             
             with tab4:
                 data_upload(data_loader)
+                
+                # Add button to refresh data with new Web Size structure
+                st.divider()
+                if st.button("🔄 Refresh Data (Load Latest Internal Data)"):
+                    with st.spinner("Refreshing internal data..."):
+                        success, message = data_loader.load_excel_to_db()
+                        if success:
+                            st.success("✅ " + message)
+                            st.rerun()
+                        else:
+                            st.error("❌ " + message)
 
     # Main content layout
     if data_loader.is_db_initialized() or st.session_state.get("initialized_db", False):

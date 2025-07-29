@@ -118,8 +118,19 @@ class DataLoader:
                 params.append(f'%{product_name}%')
             
             if web_size:
-                query += ' AND "Web Size" = ?'
-                params.append(web_size)
+                # Check if Web Size column exists, fallback to Size Range
+                conn_check = sqlite3.connect(self.db_path)
+                cursor_check = conn_check.cursor()
+                cursor_check.execute("PRAGMA table_info(products)")
+                columns = [col[1] for col in cursor_check.fetchall()]
+                conn_check.close()
+                
+                if "Web Size" in columns:
+                    query += ' AND "Web Size" = ?'
+                    params.append(web_size)
+                elif "Size Range" in columns:
+                    query += ' AND "Size Range" = ?'
+                    params.append(web_size)
             
             print(f"SQL Query: {query}")
             print(f"Parameters: {params}")
