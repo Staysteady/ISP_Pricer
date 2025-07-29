@@ -845,46 +845,30 @@ class CostTracker:
         return default_costs
     
     def _calculate_labor_costs(self, line_item):
-        """Calculate labor costs based on processing time and hourly rates."""
-        try:
-            # Load machine settings to get labor rates and process times
-            machine_settings_file = 'app/data/machine_settings.json'
-            if not os.path.exists(machine_settings_file):
-                return 0
+        """Calculate labor costs per line item - much more realistic rates."""
+        quantity = line_item.get("quantity", 0)
+        
+        # Basic handling cost per item (very reasonable)
+        base_labor_cost = 0.10  # £0.10 per item for basic handling
+        
+        # Setup costs for services (fixed cost divided across quantity)
+        service_labor_per_item = 0
+        if line_item.get("has_printing", False):
+            # £20 setup cost divided across quantity, min £0.20 per item
+            printing_setup = max(20.0 / quantity if quantity > 0 else 20.0, 0.20)
+            service_labor_per_item += printing_setup
             
-            with open(machine_settings_file, 'r') as f:
-                settings = json.load(f)
-            
-            labor_rates = settings.get('labor_rates', {})
-            hourly_rate = labor_rates.get('operator_hourly_rate', 15.0)
-            setup_time = labor_rates.get('setup_time_minutes', 5)
-            cleanup_time = labor_rates.get('cleanup_time_minutes', 3)
-            quality_check = labor_rates.get('quality_check_minutes', 2)
-            
-            total_labor_minutes = setup_time + cleanup_time + quality_check
-            
-            # Add process time based on services
-            if line_item.get("has_printing", False):
-                process_times = settings.get('process_times', {}).get('print', {})
-                # Estimate based on print type (you can make this more sophisticated)
-                total_labor_minutes += process_times.get('standard_print', 10)
-                total_labor_minutes += process_times.get('standard_bake', 5)
-                total_labor_minutes += process_times.get('standard_press', 10)
-            
-            if line_item.get("has_embroidery", False):
-                process_times = settings.get('process_times', {}).get('embroidery', {})
-                # Estimate based on logo size (you can make this more sophisticated)
-                total_labor_minutes += process_times.get('small_logo', 10)
-            
-            # Calculate cost per item and multiply by quantity
-            quantity = line_item.get("quantity", 1)
-            labor_cost_per_item = (total_labor_minutes / 60) * hourly_rate
-            
-            return round(labor_cost_per_item * quantity, 2)
-            
-        except Exception as e:
-            print(f"Error calculating labor costs: {str(e)}")
-            return 0
+        if line_item.get("has_embroidery", False):
+            # £15 setup cost divided across quantity, min £0.15 per item  
+            embroidery_setup = max(15.0 / quantity if quantity > 0 else 15.0, 0.15)
+            service_labor_per_item += embroidery_setup
+        
+        total_labor_per_item = base_labor_cost + service_labor_per_item
+        total_labor = total_labor_per_item * quantity
+        
+        print(f"DEBUG: Labor costs - £{base_labor_cost:.2f} base + £{service_labor_per_item:.2f} services = £{total_labor_per_item:.2f} per item")
+        
+        return round(total_labor, 2)
     
     def _calculate_waste_costs(self, material_total):
         """Calculate waste costs based on material totals."""
@@ -907,29 +891,21 @@ class CostTracker:
             return material_total * 0.05  # Default 5% waste
     
     def _calculate_depreciation_costs(self, line_item):
-        """Calculate equipment depreciation costs per job."""
-        try:
-            # Get monthly depreciation costs from business_costs.json
-            depreciation_costs = []
+        """Calculate equipment depreciation costs per line item - simplified."""
+        quantity = line_item.get("quantity", 0)
+        
+        # Simple per-item depreciation cost
+        depreciation_per_item = 0.05  # £0.05 per item basic depreciation
+        
+        # Additional depreciation for services
+        if line_item.get("has_printing", False):
+            depreciation_per_item += 0.10  # £0.10 extra for DTF printer usage
             
-            # Get depreciation costs for used equipment
-            if line_item.get("has_printing", False):
-                # DTF Printer depreciation
-                depreciation_costs.append(200)  # Monthly DTF depreciation
-            
-            if line_item.get("has_embroidery", False):
-                # Embroidery machine depreciation
-                depreciation_costs.append(300)  # Monthly embroidery depreciation
-            
-            # Estimate jobs per month (you can make this configurable)
-            estimated_jobs_per_month = 100
-            
-            total_monthly_depreciation = sum(depreciation_costs)
-            depreciation_per_job = total_monthly_depreciation / estimated_jobs_per_month
-            
-            quantity = line_item.get("quantity", 1)
-            return round(depreciation_per_job * (quantity / 10), 2)  # Scale by quantity
-            
-        except Exception as e:
-            print(f"Error calculating depreciation costs: {str(e)}")
-            return 0 
+        if line_item.get("has_embroidery", False):
+            depreciation_per_item += 0.15  # £0.15 extra for embroidery machine usage
+        
+        total_depreciation = depreciation_per_item * quantity
+        
+        print(f"DEBUG: Depreciation - £{depreciation_per_item:.2f} per item × {quantity} = £{total_depreciation:.2f}")
+        
+        return round(total_depreciation, 2) 
