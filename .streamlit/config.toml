@@ -1,3 +1,7 @@
 [server]
-# Set the Python version to 3.10 for better package compatibility
-pythonVersion = "3.10" 
+headless = true
+enableCORS = false
+enableXsrfProtection = false
+
+[browser]
+gatherUsageStats = false 
