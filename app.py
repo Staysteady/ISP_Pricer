@@ -160,12 +160,51 @@ if app_mode == "Quoting Tool":
                 st.divider()
                 if st.button("🔄 Refresh Data (Load Latest Internal Data)"):
                     with st.spinner("Refreshing internal data..."):
+                        # Force clear the database first
+                        try:
+                            import os
+                            if os.path.exists(data_loader.db_path):
+                                os.remove(data_loader.db_path)
+                                st.info("🗑️ Cleared old database")
+                        except Exception as e:
+                            st.warning(f"Could not clear old database: {e}")
+                        
                         success, message = data_loader.load_excel_to_db()
                         if success:
                             st.success("✅ " + message)
+                            st.balloons()
                             st.rerun()
                         else:
                             st.error("❌ " + message)
+                
+                # Show current database info
+                st.divider()
+                st.subheader("Database Status")
+                
+                # Check what columns exist in current database
+                try:
+                    import sqlite3
+                    conn = sqlite3.connect(data_loader.db_path)
+                    cursor = conn.cursor()
+                    cursor.execute("PRAGMA table_info(products)")
+                    columns = [col[1] for col in cursor.fetchall()]
+                    
+                    cursor.execute("SELECT COUNT(*) FROM products")
+                    count = cursor.fetchone()[0]
+                    conn.close()
+                    
+                    st.write(f"📊 **Total Products**: {count:,}")
+                    st.write(f"📋 **Columns**: {', '.join(columns)}")
+                    
+                    if "Web Size" in columns:
+                        st.success("✅ Using new Web Size structure")
+                    elif "Size Range" in columns:
+                        st.warning("⚠️ Using old Size Range structure - click Refresh Data to update")
+                    else:
+                        st.error("❌ No size column found")
+                        
+                except Exception as e:
+                    st.error(f"Could not check database: {e}")
 
     # Main content layout
     if data_loader.is_db_initialized() or st.session_state.get("initialized_db", False):
