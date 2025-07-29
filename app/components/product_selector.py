@@ -25,9 +25,21 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
         columns = [col[1] for col in cursor.fetchall()]
         conn.close()
         
+        needs_update = False
+        update_message = "⚠️ Database needs updating: "
+        update_reasons = []
+        
         if "Size Range" in columns and "Web Size" not in columns:
-            st.warning("⚠️ Currently using old Size Range structure. Click below to update to individual sizes.")
-            if st.button("🔄 Update to Individual Sizes (Web Size)", type="primary"):
+            needs_update = True
+            update_reasons.append("Individual sizes (Web Size)")
+            
+        if "Colour Name" not in columns:
+            needs_update = True
+            update_reasons.append("Color information")
+        
+        if needs_update:
+            st.warning(update_message + " & ".join(update_reasons))
+            if st.button("🔄 Update Database (Web Size + Colors)", type="primary"):
                 with st.spinner("Updating to individual sizes..."):
                     # Force clear the database first
                     try:
@@ -39,7 +51,7 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
                     
                     success, message = data_loader.load_excel_to_db()
                     if success:
-                        st.success("✅ Updated to individual sizes! Please refresh the page.")
+                        st.success("✅ Updated database with Web Size + Colors! Please refresh the page.")
                         st.balloons()
                         st.rerun()
                     else:
@@ -129,10 +141,17 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
         )
         
         colours = []
-        if not filtered_df.empty and "Colour Name" in filtered_df.columns:
-            colours = sorted(filtered_df["Colour Name"].unique().tolist())
-            if "Colour Name" in st.session_state and st.session_state["Colour Name"] not in colours:
-                st.session_state["Colour Name"] = ""
+        if not filtered_df.empty:
+            if "Colour Name" in filtered_df.columns:
+                colours = sorted(filtered_df["Colour Name"].unique().tolist())
+                print(f"DEBUG: Found {len(colours)} colors: {colours[:5]}")
+                if "Colour Name" in st.session_state and st.session_state["Colour Name"] not in colours:
+                    st.session_state["Colour Name"] = ""
+            else:
+                print("DEBUG: No Colour Name column in filtered data")
+                st.info("💡 Color selection not available - database may need updating with color data")
+        else:
+            print("DEBUG: No products found for color filtering")
         
         colour_name = st.selectbox("Colour", [""] + colours, key="Colour Name")
     else:

@@ -35,11 +35,20 @@ class DataLoader:
             # Convert to DataFrame
             df = pd.DataFrame(data['products'])
             
-            # Ensure all required columns exist
-            required_columns = ['Product Group', 'Brand', 'Price', 'Primary Category', 'Product Name', 'Web Size', 'Colour Name', 'Colour Code']
-            missing_columns = [col for col in required_columns if col not in df.columns]
-            if missing_columns:
-                return False, f"Missing required columns in internal data: {missing_columns}"
+            # Ensure core required columns exist
+            core_columns = ['Product Group', 'Brand', 'Price', 'Primary Category', 'Product Name']
+            missing_core = [col for col in core_columns if col not in df.columns]
+            if missing_core:
+                return False, f"Missing required core columns in internal data: {missing_core}"
+            
+            # Check for Web Size or Size Range (at least one must exist)
+            if 'Web Size' not in df.columns and 'Size Range' not in df.columns:
+                return False, "Missing size information (need either 'Web Size' or 'Size Range')"
+            
+            # Check for color columns (optional but recommended)
+            has_color_data = 'Colour Name' in df.columns
+            if not has_color_data:
+                print("Warning: No color data found in internal data")
             
             # Remove rows with missing price data
             df = df.dropna(subset=['Price'])
