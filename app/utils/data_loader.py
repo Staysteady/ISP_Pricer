@@ -36,7 +36,7 @@ class DataLoader:
             df = pd.DataFrame(data['products'])
             
             # Ensure all required columns exist
-            required_columns = ['Product Group', 'Brand', 'Price', 'Primary Category', 'Product Name', 'Size Range']
+            required_columns = ['Product Group', 'Brand', 'Price', 'Primary Category', 'Product Name', 'Web Size']
             missing_columns = [col for col in required_columns if col not in df.columns]
             if missing_columns:
                 return False, f"Missing required columns in internal data: {missing_columns}"
@@ -73,6 +73,7 @@ class DataLoader:
             c.execute('CREATE INDEX IF NOT EXISTS idx_product_group ON products ("Product Group")')
             c.execute('CREATE INDEX IF NOT EXISTS idx_primary_category ON products ("Primary Category")')
             c.execute('CREATE INDEX IF NOT EXISTS idx_product_name ON products ("Product Name")')
+            c.execute('CREATE INDEX IF NOT EXISTS idx_web_size ON products ("Web Size")')
             conn.commit()
             conn.close()
             
@@ -92,7 +93,7 @@ class DataLoader:
             print(f"Error getting unique values for {column}: {str(e)}")
             return []
     
-    def get_filtered_products(self, brand=None, product_group=None, primary_category=None, product_name=None):
+    def get_filtered_products(self, brand=None, product_group=None, primary_category=None, product_name=None, web_size=None):
         """Get products filtered by the selected criteria."""
         try:
             conn = sqlite3.connect(self.db_path)
@@ -115,6 +116,10 @@ class DataLoader:
             if product_name:
                 query += ' AND "Product Name" LIKE ?'
                 params.append(f'%{product_name}%')
+            
+            if web_size:
+                query += ' AND "Web Size" = ?'
+                params.append(web_size)
             
             print(f"SQL Query: {query}")
             print(f"Parameters: {params}")

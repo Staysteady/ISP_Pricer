@@ -49,6 +49,26 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
         # Product name search field
         product_name_filter = st.text_input("Search Product Name (optional)", key="product_name_filter")
     
+    # Second row for Web Size selection
+    if brand and product_group:
+        # Get available Web Sizes for the current selection
+        filtered_df = data_loader.get_filtered_products(
+            brand=brand, 
+            product_group=product_group,
+            primary_category=primary_category if primary_category else None,
+            product_name=product_name_filter if product_name_filter else None
+        )
+        
+        web_sizes = []
+        if not filtered_df.empty:
+            web_sizes = sorted(filtered_df["Web Size"].unique().tolist())
+            if "Web Size" in st.session_state and st.session_state["Web Size"] not in web_sizes:
+                st.session_state["Web Size"] = ""
+        
+        web_size = st.selectbox("Web Size", [""] + web_sizes, key="Web Size")
+    else:
+        web_size = None
+    
     # Get product details if required filters are selected
     selected_product = None
     if brand and product_group:
@@ -56,7 +76,8 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
             brand=brand,
             product_group=product_group,
             primary_category=primary_category if primary_category else None,
-            product_name=product_name_filter if product_name_filter else None
+            product_name=product_name_filter if product_name_filter else None,
+            web_size=web_size if web_size else None
         )
         
         if not filtered_df.empty:
@@ -64,7 +85,7 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
             if len(filtered_df) > 1:
                 product_options = {}
                 for idx, row in filtered_df.iterrows():
-                    display_name = f"{row['Product Name']} - {row['Size Range']}"
+                    display_name = f"{row['Product Name']} - {row['Web Size']}"
                     product_options[display_name] = idx
                 
                 selected_display_name = st.selectbox("Select Product", list(product_options.keys()), key="product_selection")
@@ -84,7 +105,7 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
             
             with col2:
                 st.markdown(f"**Primary Category:** {selected_product['Primary Category']}")
-                st.markdown(f"**Size Range:** {selected_product['Size Range']}")
+                st.markdown(f"**Web Size:** {selected_product['Web Size']}")
                 
                 # Use the 'Price' column (renamed from 'Cust Single Price')
                 if 'Price' in selected_product:
@@ -103,7 +124,7 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
         st.divider()
         
         # Generate a unique key for the quantity input
-        quantity_key = f"quantity_input_{selected_product['Product Group']}_{selected_product['Product Name']}_{selected_product['Size Range']}"
+        quantity_key = f"quantity_input_{selected_product['Product Group']}_{selected_product['Product Name']}_{selected_product['Web Size']}"
         
         # Check if we need to reset the quantity (after adding an item)
         if "reset_quantity" in st.session_state and st.session_state.reset_quantity == quantity_key:
@@ -283,7 +304,7 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
                 "product_group": product_group,
                 "product_name": selected_product['Product Name'],
                 "primary_category": selected_product['Primary Category'],
-                "size_range": selected_product['Size Range'],
+                "web_size": selected_product['Web Size'],
                 "base_price": base_price,                  # Store base price but don't display
                 "unit_price": product_price_data['unit_price'],    # This is the marked-up price
                 "quantity": quantity,
