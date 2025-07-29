@@ -388,20 +388,52 @@ class CostTracker:
             "total_cost": 0
         }
         
-        # Get product cost (base cost) with fallback logic
+        # Get product cost (base cost) - this should ALWAYS be the wholesale price before markup
         base_price = line_item.get("base_price", 0)
+        unit_price = line_item.get("unit_price", 0)
         
-        # If base_price is 0 or missing, try to estimate it from unit_price
-        if base_price == 0:
-            unit_price = line_item.get("unit_price", 0)
-            # Assume typical markup is around 20% (so base = unit / 1.2)
-            # This is a fallback - ideally base_price should always be set
-            base_price = unit_price / 1.2 if unit_price > 0 else 0
-            print(f"WARNING: No base_price found, estimated from unit_price: £{base_price:.2f}")
+        # The issue: base_price might actually be the marked-up price already
+        # We need to derive the TRUE wholesale cost
+        
+        # If we have markup_percent in the line item, use it to get actual wholesale cost
+        markup_percent = line_item.get("markup_percent", 0)
+        
+        if markup_percent > 0 and unit_price > 0:
+            # Calculate true wholesale cost by removing markup
+            # unit_price = wholesale_price * (1 + markup/100)
+            # so wholesale_price = unit_price / (1 + markup/100)
+            markup_factor = 1 + (markup_percent / 100)
+            
+            # But we need to account for printing/embroidery costs too
+            printing_cost = line_item.get("printing_unit_price", 0)
+            embroidery_cost = line_item.get("embroidery_unit_price", 0)
+            service_costs = printing_cost + embroidery_cost
+            
+            # The unit_price includes markup on garment but services are at cost
+            # So: unit_price = (garment_wholesale * markup_factor) + service_costs
+            # Therefore: true_wholesale = (unit_price - service_costs) / markup_factor
+            true_wholesale = (unit_price - service_costs) / markup_factor if markup_factor > 0 else base_price
+            
+            print(f"DEBUG: Calculating true wholesale cost:")
+            print(f"  unit_price: £{unit_price:.2f}")
+            print(f"  service_costs: £{service_costs:.2f}")
+            print(f"  markup_percent: {markup_percent}%")
+            print(f"  markup_factor: {markup_factor}")
+            print(f"  true_wholesale: £{true_wholesale:.2f}")
+            print(f"  original_base_price: £{base_price:.2f}")
+            
+            base_price = true_wholesale
+        else:
+            print(f"DEBUG: Using original base_price: £{base_price:.2f} (no markup calculation)")
+        
+        # If still 0, use fallback
+        if base_price <= 0:
+            base_price = unit_price / 1.5 if unit_price > 0 else 0
+            print(f"WARNING: Using fallback wholesale estimate: £{base_price:.2f}")
         
         product_cost = base_price * line_item.get("quantity", 0)
         item_costs["product_cost"] = round(product_cost, 2)
-        print(f"DEBUG: Product cost = £{base_price:.2f} × {line_item.get('quantity', 0)} = £{product_cost:.2f}")
+        print(f"DEBUG: Final product cost = £{base_price:.2f} × {line_item.get('quantity', 0)} = £{product_cost:.2f}")
         
         # Handle printing service directly from line_item (if present)
         if line_item.get("has_printing", False):
