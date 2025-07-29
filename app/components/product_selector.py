@@ -19,15 +19,15 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
     col1, col2 = st.columns(2)
     
     with col1:
-        # Supplier selection
-        suppliers = data_loader.get_unique_values("Supplier")
-        supplier = st.selectbox("Supplier", [""] + suppliers, key="supplier_select")
+        # Brand selection
+        brands = data_loader.get_unique_values("Brand")
+        brand = st.selectbox("Brand", [""] + brands, key="brand_select")
         
-        # If supplier selected, show product groups for that supplier
+        # If brand selected, show product groups for that brand
         product_groups = []
-        if supplier:
-            # Get filtered products for this supplier
-            filtered_df = data_loader.get_filtered_products(supplier=supplier)
+        if brand:
+            # Get filtered products for this brand
+            filtered_df = data_loader.get_filtered_products(brand=brand)
             product_groups = sorted(filtered_df["Product Group"].unique().tolist())
             if "Product Group" in st.session_state and st.session_state["Product Group"] not in product_groups:
                 st.session_state["Product Group"] = ""
@@ -35,69 +35,60 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
         product_group = st.selectbox("Product Group", [""] + product_groups, key="Product Group")
     
     with col2:
-        # If product group selected, show colors for that supplier and product group
-        colours = []
-        if supplier and product_group:
-            # Get filtered products to extract available colors
-            filtered_df = data_loader.get_filtered_products(supplier=supplier, product_group=product_group)
-            colours = sorted(filtered_df["Colours"].unique().tolist())
-            if "Colours" in st.session_state and st.session_state["Colours"] not in colours:
-                st.session_state["Colours"] = ""
+        # If product group selected, show primary categories for that brand and product group
+        primary_categories = []
+        if brand and product_group:
+            # Get filtered products to extract available primary categories
+            filtered_df = data_loader.get_filtered_products(brand=brand, product_group=product_group)
+            primary_categories = sorted(filtered_df["Primary Category"].unique().tolist())
+            if "Primary Category" in st.session_state and st.session_state["Primary Category"] not in primary_categories:
+                st.session_state["Primary Category"] = ""
         
-        colour = st.selectbox("Colours", [""] + colours, key="Colours")
+        primary_category = st.selectbox("Primary Category", [""] + primary_categories, key="Primary Category")
         
-        # If color selected, show sizes for that supplier, product group, and color
-        sizes = []
-        if supplier and product_group and colour:
-            # Get filtered products to extract available sizes
-            filtered_df = data_loader.get_filtered_products(
-                supplier=supplier, 
-                product_group=product_group,
-                colours=colour
-            )
-            sizes = sorted(filtered_df["Sizes"].unique().tolist())
-            if "Sizes" in st.session_state and st.session_state["Sizes"] not in sizes:
-                st.session_state["Sizes"] = ""
-        
-        size = st.selectbox("Sizes", [""] + sizes, key="Sizes")
+        # Product name search field
+        product_name_filter = st.text_input("Search Product Name (optional)", key="product_name_filter")
     
-    # Get product details if all filters are selected
+    # Get product details if required filters are selected
     selected_product = None
-    if supplier and product_group and colour and size:
+    if brand and product_group:
         filtered_df = data_loader.get_filtered_products(
-            supplier=supplier,
+            brand=brand,
             product_group=product_group,
-            colours=colour,
-            sizes=size
+            primary_category=primary_category if primary_category else None,
+            product_name=product_name_filter if product_name_filter else None
         )
         
         if not filtered_df.empty:
-            selected_product = filtered_df.iloc[0]
+            # Show a selectbox if multiple products match
+            if len(filtered_df) > 1:
+                product_options = {}
+                for idx, row in filtered_df.iterrows():
+                    display_name = f"{row['Product Name']} - {row['Size Range']}"
+                    product_options[display_name] = idx
+                
+                selected_display_name = st.selectbox("Select Product", list(product_options.keys()), key="product_selection")
+                selected_idx = product_options[selected_display_name]
+                selected_product = filtered_df.loc[selected_idx]
+            else:
+                selected_product = filtered_df.iloc[0]
             
             # Display product details
             st.divider()
             col1, col2 = st.columns(2)
             
             with col1:
-                st.markdown(f"**Selected Product:** {product_group}")
-                st.markdown(f"**Supplier:** {supplier}")
-                st.markdown(f"**Style No:** {selected_product['Style No']}")
+                st.markdown(f"**Selected Product:** {selected_product['Product Name']}")
+                st.markdown(f"**Brand:** {brand}")
+                st.markdown(f"**Product Group:** {product_group}")
             
             with col2:
-                st.markdown(f"**Colour:** {colour}")
-                st.markdown(f"**Size:** {size}")
-                # Check which column to use for price and handle potential missing columns
-                if 'Price (£).2' in selected_product:
-                    price_col = 'Price (£).2'
-                elif 'Price (£)' in selected_product:
-                    price_col = 'Price (£)'
-                else:
-                    # Try to find a column with 'Price' in its name
-                    price_cols = [col for col in selected_product.index if 'Price' in str(col)]
-                    price_col = price_cols[-1] if price_cols else None
+                st.markdown(f"**Primary Category:** {selected_product['Primary Category']}")
+                st.markdown(f"**Size Range:** {selected_product['Size Range']}")
                 
-                if price_col:
-                    base_price = selected_product[price_col]
+                # Use the 'Price' column (renamed from 'Cust Single Price')
+                if 'Price' in selected_product:
+                    base_price = selected_product['Price']
                     # Apply markup to the base price
                     markup_percent = pricing_engine.get_markup_percentage()
                     markup_factor = 1 + (markup_percent / 100)
@@ -112,7 +103,7 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
         st.divider()
         
         # Generate a unique key for the quantity input
-        quantity_key = f"quantity_input_{selected_product['Style No']}_{colour}_{size}"
+        quantity_key = f"quantity_input_{selected_product['Product Group']}_{selected_product['Product Name']}_{selected_product['Size Range']}"
         
         # Check if we need to reset the quantity (after adding an item)
         if "reset_quantity" in st.session_state and st.session_state.reset_quantity == quantity_key:
@@ -124,20 +115,12 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
             # Normal case - just display the input
             quantity = st.number_input("Quantity", min_value=1, value=1, step=1, key=quantity_key)
         
-        # Determine which price column to use (same logic as above)
-        if 'Price (£).2' in selected_product:
-            price_col = 'Price (£).2'
-        elif 'Price (£)' in selected_product:
-            price_col = 'Price (£)'
-        else:
-            price_cols = [col for col in selected_product.index if 'Price' in str(col)]
-            price_col = price_cols[-1] if price_cols else None
-        
-        if not price_col:
+        # Use the 'Price' column (renamed from 'Cust Single Price')
+        if 'Price' not in selected_product:
             st.error("Price column not found in the data")
             return None
             
-        base_price = selected_product[price_col]  # Using the single garment price as requested
+        base_price = selected_product['Price']  # Using the single garment price as requested
         
         # Add Printing and Embroidery options if service_loader is provided
         selected_printing_service = None
@@ -184,7 +167,7 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
                                 selected_printing_id, 
                                 quantity, 
                                 pricing_engine,
-                                supplier=supplier,
+                                supplier=brand,
                                 product_group=product_group,
                                 line_items=st.session_state.get('line_items', [])
                             )
@@ -223,7 +206,7 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
                                 selected_embroidery_id, 
                                 quantity, 
                                 pricing_engine,
-                                supplier=supplier,
+                                supplier=brand,
                                 product_group=product_group,
                                 line_items=st.session_state.get('line_items', [])
                             )
@@ -233,11 +216,11 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
         # Get existing line items
         line_items = st.session_state.get('line_items', [])
         
-        # Calculate garment price with markup and bulk quantity discounts for same supplier/product group
+        # Calculate garment price with markup and bulk quantity discounts for same brand/product group
         product_price_data = pricing_engine.calculate_price(
             base_price, 
             quantity,
-            supplier=supplier,
+            supplier=brand,
             product_group=product_group,
             line_items=line_items
         )
@@ -278,9 +261,9 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
             st.metric("Quantity", quantity)
             st.metric("Discount", f"{product_price_data['discount_percent']}%")
             
-            # Calculate and show the total quantity for this supplier and product group
+            # Calculate and show the total quantity for this brand and product group
             total_group_quantity = pricing_engine.get_supplier_product_group_quantity(
-                supplier, product_group, line_items) + quantity
+                brand, product_group, line_items) + quantity
             if total_group_quantity > quantity:
                 st.metric("Total Group Quantity", total_group_quantity)
         
@@ -296,11 +279,11 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
         if st.button("Add to Quote"):
             # Prepare line item data
             item_data = {
-                "supplier": supplier,
+                "supplier": brand,
                 "product_group": product_group,
-                "style_no": selected_product['Style No'],
-                "colours": colour,
-                "sizes": size,
+                "product_name": selected_product['Product Name'],
+                "primary_category": selected_product['Primary Category'],
+                "size_range": selected_product['Size Range'],
                 "base_price": base_price,                  # Store base price but don't display
                 "unit_price": product_price_data['unit_price'],    # This is the marked-up price
                 "quantity": quantity,
@@ -334,7 +317,7 @@ def product_selector(data_loader, pricing_engine, service_loader=None):
             st.session_state.reset_quantity = quantity_key
             
             # Use st.success with auto-clear
-            st.success(f"Added {product_group} to quote!", icon="✅")
+            st.success(f"Added {selected_product['Product Name']} to quote!", icon="✅")
             # Use JavaScript to auto-clear the success message after 2 seconds
             st.markdown("""
                 <script>

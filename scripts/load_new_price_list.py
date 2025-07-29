@@ -21,11 +21,11 @@ def main():
     """Load the new price list data into the database."""
     print("Loading new price list data...")
     
-    # Path to the new price list file
-    price_list_file = "cleaned_single_prices.xlsx"
+    # Use internal JSON data instead of Excel file
+    json_data_file = 'app/data/products_data.json'
     
-    if not os.path.exists(price_list_file):
-        print(f"Error: Price list file '{price_list_file}' not found.")
+    if not os.path.exists(json_data_file):
+        print(f"Error: Internal product data file '{json_data_file}' not found.")
         return 1
     
     # Ensure the database directory exists
@@ -38,17 +38,21 @@ def main():
     data_loader = DataLoader(db_path)
     
     try:
-        # Load directly with pandas to verify the file is readable
-        print(f"Verifying Excel file: {price_list_file}")
-        excel = pd.ExcelFile(price_list_file)
-        sheet_name = excel.sheet_names[0]
-        df = pd.read_excel(price_list_file, sheet_name=sheet_name)
-        print(f"Excel file is valid. Found {len(df)} rows in sheet '{sheet_name}'")
+        # Load directly from JSON to verify the file is readable
+        print(f"Verifying JSON data file: {json_data_file}")
+        import json
+        with open(json_data_file, 'r') as f:
+            data = json.load(f)
+        
+        df = pd.DataFrame(data['products'])
+        metadata = data.get('metadata', {})
+        print(f"JSON data is valid. Found {len(df)} products")
+        print(f"Source: {metadata.get('source', 'Unknown')}")
         print(f"Columns: {df.columns.tolist()}")
         
         # Load the data
         print("Loading data into database...")
-        success, message = data_loader.load_excel_to_db(price_list_file)
+        success, message = data_loader.load_excel_to_db()
         
         if success:
             print(f"Success: {message}")

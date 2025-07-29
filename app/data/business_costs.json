@@ -32,6 +32,36 @@
         },
         {
             "id": 7,
+            "name": "Vehicle & Delivery",
+            "description": "Vehicle expenses, fuel, delivery costs, maintenance"
+        },
+        {
+            "id": 8,
+            "name": "Equipment Depreciation",
+            "description": "Depreciation costs for machines and equipment"
+        },
+        {
+            "id": 9,
+            "name": "Waste & Loss",
+            "description": "Material waste, damaged goods, production losses"
+        },
+        {
+            "id": 10,
+            "name": "Insurance",
+            "description": "Business insurance, equipment insurance"
+        },
+        {
+            "id": 11,
+            "name": "Marketing & Advertising",
+            "description": "Website, social media, advertising costs"
+        },
+        {
+            "id": 12,
+            "name": "Professional Services",
+            "description": "Accounting, legal, consulting services"
+        },
+        {
+            "id": 13,
             "name": "Other",
             "description": "Miscellaneous business costs"
         }
@@ -52,6 +82,62 @@
             "cost_value": 1000,
             "cost_type": "fixed",
             "recurring_period": "monthly"
+        },
+        {
+            "category_id": 7,
+            "name": "Vehicle Fuel",
+            "description": "Monthly fuel costs for deliveries",
+            "cost_value": 150,
+            "cost_type": "variable",
+            "recurring_period": "monthly"
+        },
+        {
+            "category_id": 7,
+            "name": "Vehicle Insurance",
+            "description": "Annual vehicle insurance",
+            "cost_value": 800,
+            "cost_type": "fixed",
+            "recurring_period": "annually"
+        },
+        {
+            "category_id": 8,
+            "name": "DTF Printer Depreciation",
+            "description": "Monthly depreciation for DTF printer",
+            "cost_value": 200,
+            "cost_type": "fixed",
+            "recurring_period": "monthly"
+        },
+        {
+            "category_id": 8,
+            "name": "Embroidery Machine Depreciation",
+            "description": "Monthly depreciation for embroidery machine",
+            "cost_value": 300,
+            "cost_type": "fixed",
+            "recurring_period": "monthly"
+        },
+        {
+            "category_id": 9,
+            "name": "Material Waste Factor",
+            "description": "Estimated material waste (5% of material costs)",
+            "cost_value": 0.05,
+            "cost_type": "percentage",
+            "recurring_period": "per_job"
+        },
+        {
+            "category_id": 6,
+            "name": "Design Software Subscription",
+            "description": "Monthly design software costs",
+            "cost_value": 45,
+            "cost_type": "fixed",
+            "recurring_period": "monthly"
+        },
+        {
+            "category_id": 10,
+            "name": "Business Insurance",
+            "description": "Annual business insurance",
+            "cost_value": 1200,
+            "cost_type": "fixed",
+            "recurring_period": "annually"
         }
     ]
 }

@@ -22,7 +22,10 @@ if not login_form():
     st.stop()
 
 # Determine if we're in cloud deployment
-is_cloud = 'STREAMLIT_SHARING' in os.environ or 'DEPLOYED' in os.environ or st.secrets.get('DEPLOYED', False)
+try:
+    is_cloud = 'STREAMLIT_SHARING' in os.environ or 'DEPLOYED' in os.environ or st.secrets.get('DEPLOYED', False)
+except:
+    is_cloud = False
 
 # Import appropriate data loader
 if is_cloud:
@@ -128,20 +131,11 @@ if app_mode == "Quoting Tool":
             # Show data upload form
             data_upload(data_loader)
             
-            # Check if we have the default file to auto-load
-            default_file = "cleaned_single_prices.xlsx"
-            if os.path.exists(default_file) and st.button("Load Default Price List"):
+            # Auto-load the hard-coded price list file
+            if st.button("Load Default Price List"):
                 with st.spinner("Loading default price list..."):
-                    if is_cloud:
-                        # For cloud deployment, read the file and pass it directly
-                        with open(default_file, "rb") as f:
-                            excel_data = f.read()
-                            # Use BytesIO to avoid deprecation warning
-                            excel_file = io.BytesIO(excel_data)
-                        success, message = data_loader.load_excel_to_db(excel_file)
-                    else:
-                        # For local deployment, pass the file path
-                        success, message = data_loader.load_excel_to_db(default_file)
+                    # Use the hard-coded Excel file path in the data loader
+                    success, message = data_loader.load_excel_to_db()
                         
                     if success:
                         st.success(message)

@@ -373,6 +373,8 @@ class CostTracker:
             "material_costs": 0,
             "electricity_costs": 0,
             "labor_costs": 0,
+            "waste_costs": 0,
+            "depreciation_costs": 0,
             "total_cost": 0
         }
         
@@ -464,6 +466,18 @@ class CostTracker:
                     service_cost += self._calculate_embroidery_costs(service_id, line_item.get("quantity", 0))
                     item_costs["embroidery_costs"] += service_cost
         
+        # Calculate labor costs
+        item_costs["labor_costs"] = self._calculate_labor_costs(line_item)
+        
+        # Apply waste factors
+        material_total = item_costs["printing_costs"] + item_costs["embroidery_costs"] + item_costs["material_costs"]
+        waste_cost = self._calculate_waste_costs(material_total)
+        item_costs["waste_costs"] = waste_cost
+        
+        # Add depreciation costs
+        depreciation_cost = self._calculate_depreciation_costs(line_item)
+        item_costs["depreciation_costs"] = depreciation_cost
+        
         # Calculate total cost
         item_costs["total_cost"] = sum([
             item_costs["product_cost"],
@@ -471,7 +485,9 @@ class CostTracker:
             item_costs["embroidery_costs"],
             item_costs["material_costs"],
             item_costs["electricity_costs"],
-            item_costs["labor_costs"]
+            item_costs["labor_costs"],
+            item_costs["waste_costs"],
+            item_costs["depreciation_costs"]
         ])
         
         # Calculate profit
@@ -773,4 +789,94 @@ class CostTracker:
         with open(self.costs_file, 'w') as f:
             json.dump(default_costs, f, indent=4)
         
-        return default_costs 
+        return default_costs
+    
+    def _calculate_labor_costs(self, line_item):
+        """Calculate labor costs based on processing time and hourly rates."""
+        try:
+            # Load machine settings to get labor rates and process times
+            machine_settings_file = 'app/data/machine_settings.json'
+            if not os.path.exists(machine_settings_file):
+                return 0
+            
+            with open(machine_settings_file, 'r') as f:
+                settings = json.load(f)
+            
+            labor_rates = settings.get('labor_rates', {})
+            hourly_rate = labor_rates.get('operator_hourly_rate', 15.0)
+            setup_time = labor_rates.get('setup_time_minutes', 5)
+            cleanup_time = labor_rates.get('cleanup_time_minutes', 3)
+            quality_check = labor_rates.get('quality_check_minutes', 2)
+            
+            total_labor_minutes = setup_time + cleanup_time + quality_check
+            
+            # Add process time based on services
+            if line_item.get("has_printing", False):
+                process_times = settings.get('process_times', {}).get('print', {})
+                # Estimate based on print type (you can make this more sophisticated)
+                total_labor_minutes += process_times.get('standard_print', 10)
+                total_labor_minutes += process_times.get('standard_bake', 5)
+                total_labor_minutes += process_times.get('standard_press', 10)
+            
+            if line_item.get("has_embroidery", False):
+                process_times = settings.get('process_times', {}).get('embroidery', {})
+                # Estimate based on logo size (you can make this more sophisticated)
+                total_labor_minutes += process_times.get('small_logo', 10)
+            
+            # Calculate cost per item and multiply by quantity
+            quantity = line_item.get("quantity", 1)
+            labor_cost_per_item = (total_labor_minutes / 60) * hourly_rate
+            
+            return round(labor_cost_per_item * quantity, 2)
+            
+        except Exception as e:
+            print(f"Error calculating labor costs: {str(e)}")
+            return 0
+    
+    def _calculate_waste_costs(self, material_total):
+        """Calculate waste costs based on material totals."""
+        try:
+            # Load machine settings to get waste factors
+            machine_settings_file = 'app/data/machine_settings.json'
+            if not os.path.exists(machine_settings_file):
+                return material_total * 0.05  # Default 5% waste
+            
+            with open(machine_settings_file, 'r') as f:
+                settings = json.load(f)
+            
+            waste_factors = settings.get('waste_factors', {})
+            waste_percentage = waste_factors.get('material_waste_percentage', 5.0) / 100
+            
+            return round(material_total * waste_percentage, 2)
+            
+        except Exception as e:
+            print(f"Error calculating waste costs: {str(e)}")
+            return material_total * 0.05  # Default 5% waste
+    
+    def _calculate_depreciation_costs(self, line_item):
+        """Calculate equipment depreciation costs per job."""
+        try:
+            # Get monthly depreciation costs from business_costs.json
+            depreciation_costs = []
+            
+            # Get depreciation costs for used equipment
+            if line_item.get("has_printing", False):
+                # DTF Printer depreciation
+                depreciation_costs.append(200)  # Monthly DTF depreciation
+            
+            if line_item.get("has_embroidery", False):
+                # Embroidery machine depreciation
+                depreciation_costs.append(300)  # Monthly embroidery depreciation
+            
+            # Estimate jobs per month (you can make this configurable)
+            estimated_jobs_per_month = 100
+            
+            total_monthly_depreciation = sum(depreciation_costs)
+            depreciation_per_job = total_monthly_depreciation / estimated_jobs_per_month
+            
+            quantity = line_item.get("quantity", 1)
+            return round(depreciation_per_job * (quantity / 10), 2)  # Scale by quantity
+            
+        except Exception as e:
+            print(f"Error calculating depreciation costs: {str(e)}")
+            return 0 

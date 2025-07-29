@@ -308,7 +308,10 @@ class QuoteGenerator:
             has_embroidery = item.get("has_embroidery", False)
             
             # Format the description with decoration details
-            description = f"{item['product_group']} - {item['colours']} - {item['sizes']}"
+            product_name = item.get('product_name', item.get('product_group', 'Unknown'))
+            primary_category = item.get('primary_category', 'N/A')
+            size_range = item.get('size_range', 'N/A')
+            description = f"{product_name} - {primary_category} - {size_range}"
             
             # Add decoration details if present
             if has_printing or has_embroidery:

@@ -14,7 +14,10 @@ def data_upload(data_loader):
     st.subheader("Update Price List")
     
     # Check if we're in cloud mode
-    is_cloud = 'STREAMLIT_SHARING' in os.environ or 'DEPLOYED' in os.environ or st.secrets.get('DEPLOYED', False)
+    try:
+        is_cloud = 'STREAMLIT_SHARING' in os.environ or 'DEPLOYED' in os.environ or st.secrets.get('DEPLOYED', False)
+    except:
+        is_cloud = False
     
     # Upload file
     uploaded_file = st.file_uploader(
@@ -106,10 +109,10 @@ def data_upload(data_loader):
                     
                     # Display found data categories
                     with st.expander("Data Categories Found", expanded=True):
-                        st.write("Suppliers:", len(data_loader.get_unique_values("Supplier")))
+                        st.write("Brands:", len(data_loader.get_unique_values("Brand")))
                         st.write("Product Groups:", len(data_loader.get_unique_values("Product Group")))
-                        st.write("Colors:", len(data_loader.get_unique_values("Colours")))
-                        st.write("Sizes:", len(data_loader.get_unique_values("Sizes")))
+                        st.write("Primary Categories:", len(data_loader.get_unique_values("Primary Category")))
+                        st.write("Product Names:", len(data_loader.get_unique_values("Product Name")))
                     
                     st.session_state.initialized_db = True
                 else:

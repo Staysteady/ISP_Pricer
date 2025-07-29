@@ -65,7 +65,10 @@ def quote_actions(quote_data, line_items, pricing_engine):
         st.subheader("PDF Preview")
         
         # Check if running in Streamlit Cloud
-        is_cloud = st.secrets.get("IS_CLOUD", False)
+        try:
+            is_cloud = st.secrets.get("IS_CLOUD", False)
+        except:
+            is_cloud = False
         
         # Only show preview if not in cloud or preview is explicitly enabled
         if not is_cloud:

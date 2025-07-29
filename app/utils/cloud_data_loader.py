@@ -45,29 +45,77 @@ class CloudDataLoader:
             st.error(f"Failed to connect to Supabase: {str(e)}")
             st.info("Please check your Supabase URL and key in the Streamlit secrets.")
     
-    def load_excel_to_db(self, excel_file, sheet_name='Ralawise Price List 2025', skiprows=1):
+    def load_excel_to_db(self, excel_file=None, sheet_name='Customer_Specific_Pricing_Stand', skiprows=0):
         """Load the Excel pricing data into Supabase database."""
         try:
             if not self.supabase:
                 return False, "Supabase connection not initialized"
+            
+            # Use internal JSON file instead of Excel
+            if excel_file is None:
+                json_path = 'app/data/products_data.json'
+                st.info(f"Loading product data from internal JSON: {json_path}")
                 
-            # Read Excel file
-            st.info(f"Reading Excel file, sheet: {sheet_name}, skiprows: {skiprows}")
+                # Check if internal JSON file exists
+                if not os.path.exists(json_path):
+                    return False, f"Internal product data file not found: {json_path}"
+                
+                # Load data from JSON
+                import json
+                with open(json_path, 'r') as f:
+                    data = json.load(f)
+                
+                # Convert to DataFrame
+                df = pd.DataFrame(data['products'])
+                
+                # Print metadata info
+                metadata = data.get('metadata', {})
+                st.write(f"Data source: {metadata.get('source', 'Unknown')}")
+                st.write(f"Total products: {metadata.get('total_products', len(df))}")
+            else:
+                # Handle uploaded Excel files (fallback)
+                st.info(f"Reading uploaded Excel file, sheet: {sheet_name}")
+                
+                # Handle both file paths and bytes
+                if isinstance(excel_file, str):
+                    df = pd.read_excel(excel_file, sheet_name=sheet_name, header=1)
+                else:
+                    # Wrap bytes in BytesIO to avoid warning
+                    if isinstance(excel_file, bytes):
+                        excel_file = io.BytesIO(excel_file)
+                    df = pd.read_excel(excel_file, sheet_name=sheet_name, header=1)
+                
+                # Select only the required columns
+                required_columns = ['Product Group', 'Brand', 'Cust Single Price', 'Primary Category', 'Product Name', 'Size Range']
+                
+                # Check if all required columns exist
+                missing_columns = [col for col in required_columns if col not in df.columns]
+                if missing_columns:
+                    return False, f"Missing required columns: {missing_columns}"
+                
+                # Select only the required columns
+                df = df[required_columns].copy()
+                
+                # Rename 'Cust Single Price' to 'Price' for consistency
+                df.rename(columns={'Cust Single Price': 'Price'}, inplace=True)
             
-            # Wrap bytes in BytesIO to avoid warning
-            if isinstance(excel_file, bytes):
-                excel_file = io.BytesIO(excel_file)
-            
-            df = pd.read_excel(excel_file, sheet_name=sheet_name, skiprows=skiprows)
+            # Ensure all required columns exist
+            required_columns = ['Product Group', 'Brand', 'Price', 'Primary Category', 'Product Name', 'Size Range']
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            if missing_columns:
+                return False, f"Missing required columns in data: {missing_columns}"
             
             # Clean column names
             df.columns = [col.strip() if isinstance(col, str) else col for col in df.columns]
             
+            # Remove rows with missing price data
+            df = df.dropna(subset=['Price'])
+            
             # Print column names to help with debugging
-            st.write(f"Columns in Excel file: {df.columns.tolist()}")
+            st.write(f"Columns in processed data: {df.columns.tolist()}")
             
             # Print a sample of the data
-            st.write("Sample data from Excel file:")
+            st.write("Sample data:")
             st.write(df.head(3))
             
             # Delete all existing products
@@ -111,7 +159,7 @@ class CloudDataLoader:
             st.error(f"Error getting unique values for {column}: {str(e)}")
             return []
     
-    def get_filtered_products(self, supplier=None, product_group=None, colours=None, sizes=None):
+    def get_filtered_products(self, brand=None, product_group=None, primary_category=None, product_name=None):
         """Get products filtered by the selected criteria."""
         try:
             if not self.supabase:
@@ -119,55 +167,17 @@ class CloudDataLoader:
                 
             query = self.supabase.table('products').select('*')
             
-            if supplier:
-                query = query.eq('Supplier', supplier)
+            if brand:
+                query = query.eq('Brand', brand)
             
             if product_group:
                 query = query.eq('Product Group', product_group)
             
-            if colours and colours != "All":
-                # We can't use 'or_' as it's not available in the cloud environment
-                # Let's use two separate queries and combine the results
-                try:
-                    # First, get products that exactly match the colour
-                    exact_match_query = self.supabase.table('products').select('*')
-                    if supplier:
-                        exact_match_query = exact_match_query.eq('Supplier', supplier)
-                    if product_group:
-                        exact_match_query = exact_match_query.eq('Product Group', product_group)
-                    exact_match_query = exact_match_query.eq('Colours', colours)
-                    
-                    # Then, get products with 'All' colours
-                    all_colours_query = self.supabase.table('products').select('*')
-                    if supplier:
-                        all_colours_query = all_colours_query.eq('Supplier', supplier)
-                    if product_group:
-                        all_colours_query = all_colours_query.eq('Product Group', product_group)
-                    all_colours_query = all_colours_query.eq('Colours', 'All')
-                    
-                    # Execute both queries
-                    exact_match_response = exact_match_query.execute()
-                    all_colours_response = all_colours_query.execute()
-                    
-                    # Combine results
-                    exact_match_df = pd.DataFrame(exact_match_response.data) if hasattr(exact_match_response, 'data') else pd.DataFrame()
-                    all_colours_df = pd.DataFrame(all_colours_response.data) if hasattr(all_colours_response, 'data') else pd.DataFrame()
-                    
-                    combined_df = pd.concat([exact_match_df, all_colours_df], ignore_index=True)
-                    
-                    # Continue with size filtering if needed
-                    if sizes and sizes != "All" and not combined_df.empty:
-                        # Filter by size in Python
-                        size_mask = (combined_df['Sizes'] == sizes) | (combined_df['Sizes'] == 'All')
-                        return combined_df[size_mask]
-                    
-                    return combined_df
-                except Exception as e:
-                    st.error(f"Error in colour filtering: {str(e)}")
-                    # Fall back to base query without colour filtering
-                    pass
+            if primary_category:
+                query = query.eq('Primary Category', primary_category)
             
-            # If we didn't handle colours with the special case above or if that failed, continue with the original query
+            if product_name:
+                query = query.ilike('Product Name', f'%{product_name}%')
             
             # Execute the query
             response = query.execute()
@@ -175,12 +185,6 @@ class CloudDataLoader:
             
             if hasattr(response, 'data'):
                 results_df = pd.DataFrame(response.data)
-                
-                # If we need to filter by size and have results, do the filtering in Python
-                if sizes and sizes != "All" and not results_df.empty:
-                    # Keep products that have the exact size or "All" size
-                    size_mask = (results_df['Sizes'] == sizes) | (results_df['Sizes'] == 'All')
-                    results_df = results_df[size_mask]
             
             return results_df
         except Exception as e:

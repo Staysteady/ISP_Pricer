@@ -78,7 +78,7 @@ def quote_summary(pricing_engine, cost_tracker=None):
             has_embroidery = item.get("has_embroidery", False)
             
             # Calculate description showing printing/embroidery included
-            product_desc = item["product_group"]
+            product_desc = item.get("product_name", item.get("product_group", "Unknown"))
             if has_printing or has_embroidery:
                 decorations = []
                 if has_printing:
@@ -94,9 +94,9 @@ def quote_summary(pricing_engine, cost_tracker=None):
                 "id": item["id"],
                 "Supplier": item["supplier"],
                 "Product": product_desc,
-                "Style No": item["style_no"],
-                "Colour": item["colours"],
-                "Size": item["sizes"],
+                "Style No": item.get("product_name", "N/A"),
+                "Colour": item.get("primary_category", "N/A"),
+                "Size": item.get("size_range", "N/A"),
                 "Unit Price": f"£{item['unit_price']:.2f}",
                 "Quantity": item["quantity"],
                 "Discount": f"{item['discount_percent']}%",
@@ -191,8 +191,8 @@ def quote_summary(pricing_engine, cost_tracker=None):
             'Value': [profit_data['total_revenue'], profit_data['total_cost'], profit_data['total_profit']]
         })
         
-        # Add a unique key to the bar chart
-        st.bar_chart(profit_breakdown, x='Category', y='Value', key="quote_summary_profit_chart")
+        # Display profit breakdown chart
+        st.bar_chart(profit_breakdown, x='Category', y='Value')
     else:
         # Original three columns without profit data
         col1, col2, col3 = st.columns(3)
@@ -245,10 +245,10 @@ def show_line_item_details(item_id, cost_tracker=None, show_profit=False):
             # Product info
             col1, col2 = st.columns(2)
             with col1:
-                st.markdown(f"**Product:** {item['product_group']}")
-                st.markdown(f"**Style No:** {item['style_no']}")
-                st.markdown(f"**Colour:** {item['colours']}")
-                st.markdown(f"**Size:** {item['sizes']}")
+                st.markdown(f"**Product:** {item.get('product_name', item.get('product_group', 'Unknown'))}")
+                st.markdown(f"**Product Group:** {item.get('product_group', 'N/A')}")
+                st.markdown(f"**Category:** {item.get('primary_category', 'N/A')}")
+                st.markdown(f"**Size Range:** {item.get('size_range', 'N/A')}")
             
             with col2:
                 st.markdown(f"**Quantity:** {item['quantity']}")

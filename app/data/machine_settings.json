@@ -51,6 +51,17 @@
             "large_logo": 40
         }
     },
+    "labor_rates": {
+        "operator_hourly_rate": 15.0,
+        "setup_time_minutes": 5,
+        "cleanup_time_minutes": 3,
+        "quality_check_minutes": 2
+    },
+    "waste_factors": {
+        "material_waste_percentage": 5.0,
+        "defect_rate_percentage": 2.0,
+        "setup_waste_units": 1
+    },
     "usage_factors": {
         "print": {
             "printer_usage_factor": 0.17,
