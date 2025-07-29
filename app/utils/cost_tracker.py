@@ -388,9 +388,20 @@ class CostTracker:
             "total_cost": 0
         }
         
-        # Get product cost (base cost)
-        product_cost = line_item.get("base_price", 0) * line_item.get("quantity", 0)
+        # Get product cost (base cost) with fallback logic
+        base_price = line_item.get("base_price", 0)
+        
+        # If base_price is 0 or missing, try to estimate it from unit_price
+        if base_price == 0:
+            unit_price = line_item.get("unit_price", 0)
+            # Assume typical markup is around 20% (so base = unit / 1.2)
+            # This is a fallback - ideally base_price should always be set
+            base_price = unit_price / 1.2 if unit_price > 0 else 0
+            print(f"WARNING: No base_price found, estimated from unit_price: £{base_price:.2f}")
+        
+        product_cost = base_price * line_item.get("quantity", 0)
         item_costs["product_cost"] = round(product_cost, 2)
+        print(f"DEBUG: Product cost = £{base_price:.2f} × {line_item.get('quantity', 0)} = £{product_cost:.2f}")
         
         # Handle printing service directly from line_item (if present)
         if line_item.get("has_printing", False):
