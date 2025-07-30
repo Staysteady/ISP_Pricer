@@ -16,11 +16,31 @@ def discount_settings(pricing_engine):
     # Create a table of discount brackets
     brackets_data = []
     for bracket in discounts.get("brackets", []):
-        brackets_data.append({
-            "min_qty": bracket["min"],
-            "max_qty": bracket["max"],
-            "discount": bracket["discount"]
-        })
+        try:
+            # Ensure all values are valid
+            min_qty = bracket.get("min", 1)
+            max_qty = bracket.get("max", 24)
+            discount_val = bracket.get("discount", 0)
+            
+            # Convert to proper types and validate
+            if pd.notna(min_qty) and pd.notna(max_qty) and pd.notna(discount_val):
+                brackets_data.append({
+                    "min_qty": int(min_qty),
+                    "max_qty": int(max_qty),
+                    "discount": float(discount_val)
+                })
+        except (ValueError, TypeError) as e:
+            st.error(f"Error loading discount bracket: {e}")
+            continue
+    
+    # If no valid data, provide default
+    if not brackets_data:
+        brackets_data = [
+            {"min_qty": 1, "max_qty": 24, "discount": 0.0},
+            {"min_qty": 25, "max_qty": 49, "discount": 5.0},
+            {"min_qty": 50, "max_qty": 99, "discount": 10.0},
+            {"min_qty": 100, "max_qty": 10000, "discount": 15.0}
+        ]
     
     brackets_df = pd.DataFrame(brackets_data)
     
@@ -56,11 +76,28 @@ def discount_settings(pricing_engine):
         # Prepare new discount brackets
         new_brackets = []
         for _, row in edited_df.iterrows():
-            new_brackets.append({
-                "min": int(row["min_qty"]),
-                "max": int(row["max_qty"]),
-                "discount": float(row["discount"])
-            })
+            try:
+                # Skip rows with empty/invalid values
+                if pd.isna(row["min_qty"]) or pd.isna(row["max_qty"]) or pd.isna(row["discount"]):
+                    continue
+                    
+                min_qty = int(row["min_qty"])
+                max_qty = int(row["max_qty"]) 
+                discount = float(row["discount"])
+                
+                # Validate values
+                if min_qty < 1 or max_qty < min_qty or discount < 0:
+                    st.error(f"Invalid discount bracket: min={min_qty}, max={max_qty}, discount={discount}")
+                    continue
+                    
+                new_brackets.append({
+                    "min": min_qty,
+                    "max": max_qty,
+                    "discount": discount
+                })
+            except (ValueError, TypeError) as e:
+                st.error(f"Error processing discount bracket: {e}")
+                continue
         
         # Sort brackets by min quantity
         new_brackets.sort(key=lambda x: x["min"])
