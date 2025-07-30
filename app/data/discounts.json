@@ -2,13 +2,8 @@
     "brackets": [
         {
             "min": 1,
-            "max": 9,
-            "discount": 0.0
-        },
-        {
-            "min": 10,
             "max": 24,
-            "discount": 5.0
+            "discount": 0.0
         },
         {
             "min": 25,
@@ -18,15 +13,10 @@
         {
             "min": 50,
             "max": 99,
-            "discount": 15.0
-        },
-        {
-            "min": 100,
-            "max": 249,
             "discount": 20.0
         },
         {
-            "min": 250,
+            "min": 100,
             "max": 10000,
             "discount": 25.0
         }
