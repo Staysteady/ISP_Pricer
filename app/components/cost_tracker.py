@@ -70,10 +70,14 @@ def cost_dashboard(cost_tracker):
     # Create columns for metrics
     col1, col2, col3 = st.columns(3)
     
-    # Calculate total costs
-    fixed_costs = costs_df[costs_df['cost_type'] == 'fixed']['cost_value'].sum()
-    variable_costs = costs_df[costs_df['cost_type'] == 'variable']['cost_value'].sum()
-    per_unit_costs = costs_df[costs_df['cost_type'] == 'per_unit']['cost_value'].sum()
+    # Calculate total costs safely
+    try:
+        fixed_costs = costs_df[costs_df['cost_type'] == 'fixed']['cost_value'].sum() if 'cost_type' in costs_df.columns and 'cost_value' in costs_df.columns else 0
+        variable_costs = costs_df[costs_df['cost_type'] == 'variable']['cost_value'].sum() if 'cost_type' in costs_df.columns and 'cost_value' in costs_df.columns else 0
+        per_unit_costs = costs_df[costs_df['cost_type'] == 'per_unit']['cost_value'].sum() if 'cost_type' in costs_df.columns and 'cost_value' in costs_df.columns else 0
+    except Exception as e:
+        st.error(f"Error calculating costs: {str(e)}")
+        fixed_costs = variable_costs = per_unit_costs = 0
     
     # Display metrics
     with col1:
@@ -86,7 +90,14 @@ def cost_dashboard(cost_tracker):
         st.metric("Per Unit Costs", f"£{per_unit_costs:.2f}")
     
     # Create a pie chart for costs by category
-    category_costs = costs_df.groupby('category_name')['cost_value'].sum().reset_index()
+    try:
+        if 'category_name' in costs_df.columns and 'cost_value' in costs_df.columns:
+            category_costs = costs_df.groupby('category_name')['cost_value'].sum().reset_index()
+        else:
+            category_costs = pd.DataFrame({'category_name': ['No Data'], 'cost_value': [0]})
+    except Exception as e:
+        st.error(f"Error grouping costs by category: {str(e)}")
+        category_costs = pd.DataFrame({'category_name': ['No Data'], 'cost_value': [0]})
     
     fig1 = px.pie(
         category_costs, 
@@ -99,14 +110,24 @@ def cost_dashboard(cost_tracker):
     
     # Display costs table
     st.subheader("All Costs")
-    st.dataframe(
-        costs_df[['name', 'category_name', 'cost_value', 'cost_type', 'recurring_period', 'date_incurred']],
-        column_config={
-            "cost_value": st.column_config.NumberColumn("Cost Value (£)", format="£%.2f"),
-            "date_incurred": st.column_config.DateColumn("Date Incurred"),
-        },
-        use_container_width=True
-    )
+    try:
+        # Select only available columns
+        available_columns = ['name', 'category_name', 'cost_value', 'cost_type', 'recurring_period', 'date_incurred']
+        display_columns = [col for col in available_columns if col in costs_df.columns]
+        
+        if display_columns:
+            st.dataframe(
+                costs_df[display_columns],
+                column_config={
+                    "cost_value": st.column_config.NumberColumn("Cost Value (£)", format="£%.2f"),
+                    "date_incurred": st.column_config.DateColumn("Date Incurred"),
+                },
+                use_container_width=True
+            )
+        else:
+            st.info("No cost data available to display")
+    except Exception as e:
+        st.error(f"Error displaying costs table: {str(e)}")
 
 def manage_business_costs(cost_tracker):
     """UI for managing business costs."""
@@ -261,21 +282,33 @@ def manage_business_costs(cost_tracker):
             
             with st.form("edit_cost_form"):
                 # Category selection
-                category_id = st.selectbox(
-                    "Category", 
-                    options=categories_df['id'].tolist(),
-                    index=categories_df.index[categories_df['id'] == cost_data['category_id']].tolist()[0],
-                    format_func=lambda x: categories_df[categories_df['id'] == x]['name'].iloc[0]
-                )
+                try:
+                    if 'id' in categories_df.columns and not categories_df.empty:
+                        current_cat_index = 0
+                        if cost_data.get('category_id') in categories_df['id'].values:
+                            current_cat_index = categories_df.index[categories_df['id'] == cost_data['category_id']].tolist()[0]
+                        
+                        category_id = st.selectbox(
+                            "Category", 
+                            options=categories_df['id'].tolist(),
+                            index=current_cat_index,
+                            format_func=lambda x: categories_df[categories_df['id'] == x]['name'].iloc[0]
+                        )
+                    else:
+                        st.error("No categories available")
+                        category_id = cost_data.get('category_id', 1)
+                except Exception as e:
+                    st.error(f"Error loading categories for edit: {str(e)}")
+                    category_id = cost_data.get('category_id', 1)
                 
                 # Cost details
-                cost_name = st.text_input("Cost Name", value=cost_data['name'])
-                cost_description = st.text_area("Description", value=cost_data['description'])
-                cost_value = st.number_input("Cost Value (£)", min_value=0.0, value=float(cost_data['cost_value']), format="%.2f")
+                cost_name = st.text_input("Cost Name", value=cost_data.get('name', ''))
+                cost_description = st.text_area("Description", value=cost_data.get('description', ''))
+                cost_value = st.number_input("Cost Value (£)", min_value=0.0, value=float(cost_data.get('cost_value', 0)), format="%.2f")
                 
                 # Cost type
                 cost_type_options = ["fixed", "variable", "per_unit"]
-                cost_type_index = cost_type_options.index(cost_data['cost_type']) if cost_data['cost_type'] in cost_type_options else 0
+                cost_type_index = cost_type_options.index(cost_data.get('cost_type', 'fixed')) if cost_data.get('cost_type') in cost_type_options else 0
                 cost_type = st.selectbox(
                     "Cost Type",
                     options=cost_type_options,
@@ -283,13 +316,15 @@ def manage_business_costs(cost_tracker):
                 )
                 
                 # Date and recurrence
-                date_incurred = st.date_input(
-                    "Date Incurred", 
-                    datetime.strptime(cost_data['date_incurred'], "%Y-%m-%d") if cost_data['date_incurred'] else datetime.now()
-                )
+                try:
+                    date_value = datetime.strptime(cost_data.get('date_incurred', ''), "%Y-%m-%d") if cost_data.get('date_incurred') else datetime.now()
+                except:
+                    date_value = datetime.now()
+                    
+                date_incurred = st.date_input("Date Incurred", date_value)
                 
                 recurring_options = ["one-time", "daily", "weekly", "monthly", "quarterly", "annually"]
-                recurring_index = recurring_options.index(cost_data['recurring_period']) if cost_data['recurring_period'] in recurring_options else 0
+                recurring_index = recurring_options.index(cost_data.get('recurring_period', 'one-time')) if cost_data.get('recurring_period') in recurring_options else 0
                 recurring_period = st.selectbox(
                     "Recurring Period",
                     options=recurring_options,

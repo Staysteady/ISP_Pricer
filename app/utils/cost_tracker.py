@@ -723,6 +723,19 @@ class CostTracker:
     def _create_default_business_costs(self):
         """Create default business costs if file doesn't exist."""
         default_costs = {
+            "categories": [
+                {"id": 1, "name": "Equipment", "description": "Costs related to equipment purchase and maintenance"},
+                {"id": 2, "name": "Utilities", "description": "Utility costs including electricity, water, etc."},
+                {"id": 3, "name": "Materials", "description": "Materials used in production process"},
+                {"id": 4, "name": "Labor", "description": "Labor costs"},
+                {"id": 5, "name": "Rent", "description": "Rent and property-related costs"},
+                {"id": 6, "name": "Software", "description": "Software and digital services"},
+                {"id": 7, "name": "Other", "description": "Miscellaneous business costs"}
+            ],
+            "costs": [
+                {"category_id": 2, "name": "Electricity", "description": "Monthly electricity bill", "cost_value": 0.4, "cost_type": "per_unit", "date_incurred": datetime.now().strftime("%Y-%m-%d"), "recurring_period": "monthly"},
+                {"category_id": 5, "name": "Workshop Rent", "description": "Monthly workshop rent", "cost_value": 1000, "cost_type": "fixed", "date_incurred": datetime.now().strftime("%Y-%m-%d"), "recurring_period": "monthly"}
+            ],
             "electricity_rates": {
                 "cost_per_kwh": 0.34
             },
