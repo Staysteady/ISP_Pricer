@@ -1,344 +1,365 @@
 import os
 import json
-import sqlite3
 import pandas as pd
 from datetime import datetime
 
 class CostTracker:
-    def __init__(self, db_path='app/data/pricer.db', costs_file='app/data/business_costs.json'):
-        """Initialize the cost tracker with the database and costs file."""
-        self.db_path = db_path
+    def __init__(self, costs_file='app/data/business_costs.json'):
+        """Initialize the cost tracker with JSON files."""
         self.costs_file = costs_file
         self.services_file = 'app/data/printing_embroidery.json'
-        self._initialize_db()
-        self._load_default_costs()
+        self.electricity_file = 'app/data/electricity_costs.json'
+        self.material_file = 'app/data/material_costs.json'
         self.business_costs = self._load_business_costs()
+        self.electricity_costs = self._load_electricity_costs()
+        self.material_costs = self._load_material_costs()
         
-    def _initialize_db(self):
-        """Initialize the cost tracking tables in the database."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        # Create cost categories table
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS cost_categories (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            description TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        ''')
-        
-        # Create costs table
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS business_costs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            category_id INTEGER,
-            name TEXT NOT NULL,
-            description TEXT,
-            cost_value REAL NOT NULL,
-            cost_type TEXT DEFAULT 'fixed',  -- fixed, variable, per_unit, etc.
-            date_incurred DATE,
-            recurring_period TEXT,  -- monthly, quarterly, annually, one-time
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (category_id) REFERENCES cost_categories(id)
-        )
-        ''')
-        
-        # Create electricity usage table based on image data
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS electricity_costs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            process_type TEXT NOT NULL,  -- print, embroidery
-            process_name TEXT NOT NULL,  -- e.g., "Print 1 Logo", "Embroidery Small Logo"
-            avg_time_min REAL,
-            cost_per_unit_kwh REAL,
-            machine_watts REAL,
-            usage_w REAL,
-            cost_per_run REAL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        ''')
-        
-        # Create materials cost table
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS material_costs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            material_type TEXT NOT NULL,  -- film, ink, powder, backing, etc.
-            material_name TEXT NOT NULL,
-            cost_per_unit REAL,
-            unit_measurement TEXT,  -- length, weight, piece, etc.
-            unit_value REAL,  -- length in m, weight in g, etc.
-            logo_size TEXT,  -- small, large
-            cost_per_logo REAL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        ''')
-        
-        conn.commit()
-        conn.close()
+    def _load_electricity_costs(self):
+        """Load electricity costs from JSON file or create default."""
+        if os.path.exists(self.electricity_file):
+            try:
+                with open(self.electricity_file, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"Error loading electricity costs: {str(e)}")
+                return self._create_default_electricity_costs()
+        else:
+            return self._create_default_electricity_costs()
     
-    def _load_default_costs(self):
-        """Load default costs from JSON file or create default if not exists."""
-        if os.path.exists(self.costs_file):
-            return
-        
-        # Default business costs
+    def _load_material_costs(self):
+        """Load material costs from JSON file or create default."""
+        if os.path.exists(self.material_file):
+            try:
+                with open(self.material_file, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"Error loading material costs: {str(e)}")
+                return self._create_default_material_costs()
+        else:
+            return self._create_default_material_costs()
+    
+    def _create_default_electricity_costs(self):
+        """Create default electricity costs if file doesn't exist."""
         default_costs = {
-            "categories": [
-                {"id": 1, "name": "Equipment", "description": "Costs related to equipment purchase and maintenance"},
-                {"id": 2, "name": "Utilities", "description": "Utility costs including electricity, water, etc."},
-                {"id": 3, "name": "Materials", "description": "Materials used in production process"},
-                {"id": 4, "name": "Labor", "description": "Labor costs"},
-                {"id": 5, "name": "Rent", "description": "Rent and property-related costs"},
-                {"id": 6, "name": "Software", "description": "Software and digital services"},
-                {"id": 7, "name": "Other", "description": "Miscellaneous business costs"}
-            ],
-            "costs": [
-                {"category_id": 2, "name": "Electricity", "description": "Monthly electricity bill", "cost_value": 0.4, "cost_type": "per_unit", "recurring_period": "monthly"},
-                {"category_id": 5, "name": "Workshop Rent", "description": "Monthly workshop rent", "cost_value": 1000, "cost_type": "fixed", "recurring_period": "monthly"}
-            ]
+            "print_electricity": [],
+            "embroidery_electricity": []
         }
         
-        # Create the default costs file
-        os.makedirs(os.path.dirname(self.costs_file), exist_ok=True)
-        with open(self.costs_file, 'w') as f:
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(self.electricity_file), exist_ok=True)
+        
+        # Save default costs
+        with open(self.electricity_file, 'w') as f:
             json.dump(default_costs, f, indent=4)
         
-        # Import the default costs to the database
-        self._import_default_costs(default_costs)
+        return default_costs
     
-    def _import_default_costs(self, default_costs):
-        """Import default costs to the database."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
+    def _create_default_material_costs(self):
+        """Create default material costs if file doesn't exist."""
+        default_costs = {
+            "film_costs": [],
+            "ink_costs": [],
+            "powder_costs": [],
+            "backing_costs": []
+        }
         
-        # Add default categories
-        for category in default_costs["categories"]:
-            cursor.execute('''
-            INSERT OR IGNORE INTO cost_categories (id, name, description)
-            VALUES (?, ?, ?)
-            ''', (category["id"], category["name"], category["description"]))
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(self.material_file), exist_ok=True)
         
-        # Add default costs
-        today = datetime.now().strftime("%Y-%m-%d")
-        for cost in default_costs["costs"]:
-            cursor.execute('''
-            INSERT OR IGNORE INTO business_costs 
-            (category_id, name, description, cost_value, cost_type, date_incurred, recurring_period)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                cost["category_id"], 
-                cost["name"], 
-                cost["description"], 
-                cost["cost_value"],
-                cost["cost_type"],
-                today,
-                cost["recurring_period"]
-            ))
+        # Save default costs
+        with open(self.material_file, 'w') as f:
+            json.dump(default_costs, f, indent=4)
         
-        conn.commit()
-        conn.close()
+        return default_costs
+    
+    def save_electricity_costs(self, electricity_data):
+        """Save electricity costs to JSON file."""
+        try:
+            with open(self.electricity_file, 'w') as f:
+                json.dump(electricity_data, f, indent=4)
+            self.electricity_costs = electricity_data
+            return True, "Electricity costs saved successfully"
+        except Exception as e:
+            return False, f"Error saving electricity costs: {str(e)}"
+    
+    def save_material_costs(self, material_data):
+        """Save material costs to JSON file."""
+        try:
+            with open(self.material_file, 'w') as f:
+                json.dump(material_data, f, indent=4)
+            self.material_costs = material_data
+            return True, "Material costs saved successfully"
+        except Exception as e:
+            return False, f"Error saving material costs: {str(e)}"
+    
+    def save_business_costs(self, business_data):
+        """Save business costs to JSON file."""
+        try:
+            with open(self.costs_file, 'w') as f:
+                json.dump(business_data, f, indent=4)
+            self.business_costs = business_data
+            return True, "Business costs saved successfully"
+        except Exception as e:
+            return False, f"Error saving business costs: {str(e)}"
+    
+    
     
     def import_electricity_costs_from_image(self, electricity_data):
         """Import electricity costs from the image data provided."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        for item in electricity_data:
-            cursor.execute('''
-            INSERT INTO electricity_costs 
-            (process_type, process_name, avg_time_min, cost_per_unit_kwh, machine_watts, usage_w, cost_per_run)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                item["process_type"],
-                item["process_name"],
-                item["avg_time_min"],
-                item["cost_per_unit_kwh"],
-                item["machine_watts"],
-                item["usage_w"],
-                item["cost_per_run"]
-            ))
-        
-        conn.commit()
-        conn.close()
-        return True
+        try:
+            # Load existing data
+            current_data = self._load_electricity_costs()
+            
+            # Add new electricity data
+            for item in electricity_data:
+                if item["process_type"] == "print":
+                    current_data["print_electricity"].append(item)
+                elif item["process_type"] == "embroidery":
+                    current_data["embroidery_electricity"].append(item)
+            
+            # Save updated data
+            with open(self.electricity_file, 'w') as f:
+                json.dump(current_data, f, indent=4)
+            
+            # Update instance data
+            self.electricity_costs = current_data
+            return True
+        except Exception as e:
+            print(f"Error importing electricity costs: {str(e)}")
+            return False
     
     def import_material_costs_from_image(self, material_data):
         """Import material costs from the image data provided."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
-        for item in material_data:
-            cursor.execute('''
-            INSERT INTO material_costs 
-            (material_type, material_name, cost_per_unit, unit_measurement, unit_value, logo_size, cost_per_logo)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                item["material_type"],
-                item["material_name"],
-                item["cost_per_unit"],
-                item["unit_measurement"],
-                item["unit_value"],
-                item["logo_size"],
-                item["cost_per_logo"]
-            ))
-        
-        conn.commit()
-        conn.close()
-        return True
+        try:
+            # Load existing data
+            current_data = self._load_material_costs()
+            
+            # Add new material data to appropriate categories
+            for item in material_data:
+                material_type = item["material_type"].lower()
+                if material_type == "film":
+                    current_data["film_costs"].append(item)
+                elif material_type == "ink":
+                    current_data["ink_costs"].append(item)
+                elif material_type == "powder":
+                    current_data["powder_costs"].append(item)
+                elif material_type == "backing":
+                    current_data["backing_costs"].append(item)
+            
+            # Save updated data
+            with open(self.material_file, 'w') as f:
+                json.dump(current_data, f, indent=4)
+            
+            # Update instance data
+            self.material_costs = current_data
+            return True
+        except Exception as e:
+            print(f"Error importing material costs: {str(e)}")
+            return False
     
     def get_all_cost_categories(self):
-        """Get all cost categories."""
-        conn = sqlite3.connect(self.db_path)
-        df = pd.read_sql_query("SELECT * FROM cost_categories ORDER BY name", conn)
-        conn.close()
-        return df
+        """Get all cost categories from business costs JSON."""
+        try:
+            data = self._load_business_costs()
+            categories = data.get("categories", [])
+            if categories:
+                df = pd.DataFrame(categories)
+                return df.sort_values('name') if 'name' in df.columns else df
+            else:
+                return pd.DataFrame(columns=['id', 'name', 'description'])
+        except Exception as e:
+            print(f"Error getting cost categories: {str(e)}")
+            return pd.DataFrame()
     
     def get_costs_by_category(self, category_id=None):
-        """Get costs filtered by category."""
-        conn = sqlite3.connect(self.db_path)
-        
-        if category_id:
-            query = "SELECT * FROM business_costs WHERE category_id = ? ORDER BY name"
-            df = pd.read_sql_query(query, conn, params=(category_id,))
-        else:
-            query = """
-            SELECT bc.*, cc.name as category_name 
-            FROM business_costs bc
-            JOIN cost_categories cc ON bc.category_id = cc.id
-            ORDER BY cc.name, bc.name
-            """
-            df = pd.read_sql_query(query, conn)
-        
-        conn.close()
-        return df
+        """Get costs filtered by category from business costs JSON."""
+        try:
+            data = self._load_business_costs()
+            costs = data.get("costs", [])
+            categories = data.get("categories", [])
+            
+            # Create category lookup
+            category_lookup = {cat['id']: cat['name'] for cat in categories}
+            
+            if category_id:
+                # Filter by specific category
+                filtered_costs = [cost for cost in costs if cost.get('category_id') == category_id]
+            else:
+                # Return all costs with category names
+                filtered_costs = costs.copy()
+                for cost in filtered_costs:
+                    cost['category_name'] = category_lookup.get(cost.get('category_id'), 'Unknown')
+            
+            if filtered_costs:
+                df = pd.DataFrame(filtered_costs)
+                return df.sort_values('name') if 'name' in df.columns else df
+            else:
+                columns = ['category_id', 'name', 'description', 'cost_value', 'cost_type', 'date_incurred', 'recurring_period']
+                if not category_id:
+                    columns.append('category_name')
+                return pd.DataFrame(columns=columns)
+        except Exception as e:
+            print(f"Error getting costs by category: {str(e)}")
+            return pd.DataFrame()
     
     def add_cost_category(self, name, description=""):
-        """Add a new cost category."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
+        """Add a new cost category to business costs JSON."""
         try:
-            cursor.execute('''
-            INSERT INTO cost_categories (name, description)
-            VALUES (?, ?)
-            ''', (name, description))
-            conn.commit()
-            success = True
-            message = "Category added successfully"
-        except sqlite3.IntegrityError:
-            success = False
-            message = "Category already exists"
+            data = self._load_business_costs()
+            categories = data.get("categories", [])
+            
+            # Check if category already exists
+            if any(cat['name'].lower() == name.lower() for cat in categories):
+                return False, "Category already exists"
+            
+            # Find next available ID
+            max_id = max([cat.get('id', 0) for cat in categories], default=0)
+            new_id = max_id + 1
+            
+            # Add new category
+            new_category = {
+                "id": new_id,
+                "name": name,
+                "description": description
+            }
+            categories.append(new_category)
+            
+            # Save updated data
+            data["categories"] = categories
+            with open(self.costs_file, 'w') as f:
+                json.dump(data, f, indent=4)
+            
+            # Update instance data
+            self.business_costs = data
+            return True, "Category added successfully"
         except Exception as e:
-            success = False
-            message = f"Error adding category: {str(e)}"
-        
-        conn.close()
-        return success, message
+            return False, f"Error adding category: {str(e)}"
     
-    def add_business_cost(self, data):
-        """Add a new business cost."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
+    def add_business_cost(self, cost_data):
+        """Add a new business cost to business costs JSON."""
         try:
-            cursor.execute('''
-            INSERT INTO business_costs 
-            (category_id, name, description, cost_value, cost_type, date_incurred, recurring_period)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (
-                data["category_id"], 
-                data["name"], 
-                data["description"], 
-                data["cost_value"],
-                data["cost_type"],
-                data["date_incurred"],
-                data["recurring_period"]
-            ))
-            conn.commit()
-            success = True
-            message = "Cost added successfully"
+            data = self._load_business_costs()
+            costs = data.get("costs", [])
+            
+            # Add timestamp if not provided
+            if 'date_incurred' not in cost_data:
+                cost_data['date_incurred'] = datetime.now().strftime("%Y-%m-%d")
+            
+            # Add new cost
+            costs.append(cost_data)
+            
+            # Save updated data
+            data["costs"] = costs
+            with open(self.costs_file, 'w') as f:
+                json.dump(data, f, indent=4)
+            
+            # Update instance data
+            self.business_costs = data
+            return True, "Cost added successfully"
         except Exception as e:
-            success = False
-            message = f"Error adding cost: {str(e)}"
-        
-        conn.close()
-        return success, message
+            return False, f"Error adding cost: {str(e)}"
     
-    def update_business_cost(self, cost_id, data):
-        """Update an existing business cost."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
+    def update_business_cost(self, cost_index, cost_data):
+        """Update an existing business cost in business costs JSON."""
         try:
-            cursor.execute('''
-            UPDATE business_costs 
-            SET category_id = ?, name = ?, description = ?, cost_value = ?,
-                cost_type = ?, date_incurred = ?, recurring_period = ?,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-            ''', (
-                data["category_id"], 
-                data["name"], 
-                data["description"], 
-                data["cost_value"],
-                data["cost_type"],
-                data["date_incurred"],
-                data["recurring_period"],
-                cost_id
-            ))
-            conn.commit()
-            success = True
-            message = "Cost updated successfully"
+            data = self._load_business_costs()
+            costs = data.get("costs", [])
+            
+            if 0 <= cost_index < len(costs):
+                # Update the cost at the specified index
+                costs[cost_index] = cost_data
+                
+                # Save updated data
+                data["costs"] = costs
+                with open(self.costs_file, 'w') as f:
+                    json.dump(data, f, indent=4)
+                
+                # Update instance data
+                self.business_costs = data
+                return True, "Cost updated successfully"
+            else:
+                return False, "Cost index out of range"
         except Exception as e:
-            success = False
-            message = f"Error updating cost: {str(e)}"
-        
-        conn.close()
-        return success, message
+            return False, f"Error updating cost: {str(e)}"
     
-    def delete_business_cost(self, cost_id):
-        """Delete a business cost."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        
+    def delete_business_cost(self, cost_index):
+        """Delete a business cost from business costs JSON."""
         try:
-            cursor.execute("DELETE FROM business_costs WHERE id = ?", (cost_id,))
-            conn.commit()
-            success = True
-            message = "Cost deleted successfully"
+            data = self._load_business_costs()
+            costs = data.get("costs", [])
+            
+            if 0 <= cost_index < len(costs):
+                # Remove the cost at the specified index
+                removed_cost = costs.pop(cost_index)
+                
+                # Save updated data
+                data["costs"] = costs
+                with open(self.costs_file, 'w') as f:
+                    json.dump(data, f, indent=4)
+                
+                # Update instance data
+                self.business_costs = data
+                return True, "Cost deleted successfully"
+            else:
+                return False, "Cost index out of range"
         except Exception as e:
-            success = False
-            message = f"Error deleting cost: {str(e)}"
-        
-        conn.close()
-        return success, message
+            return False, f"Error deleting cost: {str(e)}"
     
     def get_all_electricity_costs(self):
-        """Get all electricity costs."""
-        conn = sqlite3.connect(self.db_path)
-        df = pd.read_sql_query("SELECT * FROM electricity_costs ORDER BY process_type, process_name", conn)
-        conn.close()
-        return df
+        """Get all electricity costs as a DataFrame."""
+        try:
+            data = self._load_electricity_costs()
+            
+            # Combine all electricity costs into a single list
+            all_costs = []
+            for process_list in data.values():
+                if isinstance(process_list, list):
+                    all_costs.extend(process_list)
+            
+            # Convert to DataFrame
+            if all_costs:
+                df = pd.DataFrame(all_costs)
+                # Sort by process_type and process_name if columns exist
+                if 'process_type' in df.columns and 'process_name' in df.columns:
+                    df = df.sort_values(['process_type', 'process_name'])
+                return df
+            else:
+                # Return empty DataFrame with expected columns
+                return pd.DataFrame(columns=['process_type', 'process_name', 'avg_time_min', 'cost_per_unit_kwh', 'machine_watts', 'usage_w', 'cost_per_run'])
+        except Exception as e:
+            print(f"Error getting electricity costs: {str(e)}")
+            return pd.DataFrame()
     
     def get_all_material_costs(self):
-        """Get all material costs."""
-        conn = sqlite3.connect(self.db_path)
-        df = pd.read_sql_query("SELECT * FROM material_costs ORDER BY material_type, material_name", conn)
-        conn.close()
-        return df
+        """Get all material costs as a DataFrame."""
+        try:
+            data = self._load_material_costs()
+            
+            # Combine all material costs into a single list
+            all_costs = []
+            for material_list in data.values():
+                if isinstance(material_list, list):
+                    all_costs.extend(material_list)
+            
+            # Convert to DataFrame
+            if all_costs:
+                df = pd.DataFrame(all_costs)
+                # Sort by material_type and material_name if columns exist
+                if 'material_type' in df.columns and 'material_name' in df.columns:
+                    df = df.sort_values(['material_type', 'material_name'])
+                return df
+            else:
+                # Return empty DataFrame with expected columns
+                return pd.DataFrame(columns=['material_type', 'material_name', 'cost_per_unit', 'unit_measurement', 'unit_value', 'logo_size', 'cost_per_logo'])
+        except Exception as e:
+            print(f"Error getting material costs: {str(e)}")
+            return pd.DataFrame()
     
     def get_profit_analysis(self, quote_data):
-        """Calculate profit based on quote data and costs."""
-        # TODO: Implement profit analysis logic
-        # Will need to calculate actual costs of items in quotes based on costs in the database
-        # and return the difference between quote price and actual costs
-        pass 
+        """Calculate profit based on quote data and costs using JSON data."""
+        # This method can be implemented later if needed
+        # It would use the existing calculate_quote_costs_and_profit method
+        return self.calculate_quote_costs_and_profit(quote_data) 
     
     def _get_service_cost_from_file(self, service_id):
         """Get the cost of a service from the services file."""
@@ -433,70 +454,61 @@ class CostTracker:
         }
     
     def _calculate_printing_costs(self, service_id, quantity):
-        """Calculate printing costs including electricity, materials, etc."""
+        """Calculate printing costs including electricity, materials, etc. using JSON data."""
         total_cost = 0
         
-        # Get electricity costs from database
-        conn = sqlite3.connect(self.db_path)
-        
-        # Map service_id to relevant process names
-        # Update process names to match what's used in the electricity_costs table
-        # These should be consistent with the process names in manual entry
-        process_mapping = {
-            "print_1_small": ["DTF Printer", "Oven", "Heat Press"],
-            "print_2_small": ["DTF Printer", "Oven", "Heat Press", "Heat Press (2nd logo)", 
-                              "DTF Printer (2nd small logo)", "Oven (2nd small logo)", 
-                              "Heat Press (2nd small logo)", "Heat Press (2nd small logo, 2nd pass)"],
-            "print_half_back_front": ["DTF Printer", "Oven", "Heat Press"],
-            "print_large_back_front": ["DTF Printer", "Oven", "Heat Press"]
-        }
-        
-        # Get electricity costs for the relevant processes
-        processes = process_mapping.get(service_id, [])
-        
-        for process in processes:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT cost_per_run FROM electricity_costs 
-                WHERE process_type = 'print' AND process_name = ?
-            """, (process,))
-            result = cursor.fetchone()
+        try:
+            # Get electricity costs from JSON
+            electricity_data = self._load_electricity_costs()
+            print_electricity = electricity_data.get("print_electricity", [])
             
-            if result:
-                cost_per_run = result[0]
-                total_cost += cost_per_run * quantity
-        
-        # Get material costs
-        logo_size = "Small Logo" if "small" in service_id else "Large Logo"
-        
-        # Get film costs
-        cursor.execute("""
-            SELECT cost_per_logo FROM material_costs 
-            WHERE material_type = 'Film' AND logo_size = ?
-        """, (logo_size,))
-        result = cursor.fetchone()
-        if result:
-            total_cost += result[0] * quantity
-        
-        # Get ink costs
-        cursor.execute("""
-            SELECT cost_per_logo FROM material_costs 
-            WHERE material_type = 'Ink' AND logo_size = ?
-        """, (logo_size,))
-        result = cursor.fetchone()
-        if result:
-            total_cost += result[0] * quantity
-        
-        # Get powder costs
-        cursor.execute("""
-            SELECT cost_per_logo FROM material_costs 
-            WHERE material_type = 'Powder' AND logo_size = ?
-        """, (logo_size,))
-        result = cursor.fetchone()
-        if result:
-            total_cost += result[0] * quantity
-        
-        conn.close()
+            # Map service_id to relevant process names
+            process_mapping = {
+                "print_1_small": ["Print", "Bake", "Press 1 Logo"],
+                "print_2_small": ["Print", "Bake", "Press 1 Logo", "Press 2 Logo", 
+                                  "Print (2nd small logo)", "Bake (2nd small logo)", 
+                                  "Press 1 Logo (2nd small logo)", "Press 2 Logo (2nd small logo)"],
+                "print_half_back_front": ["Print", "Bake", "Press 1 Logo"],
+                "print_large_back_front": ["Print", "Bake", "Press 1 Logo"]
+            }
+            
+            # Get electricity costs for the relevant processes
+            processes = process_mapping.get(service_id, [])
+            
+            for process in processes:
+                matching_process = next((item for item in print_electricity 
+                                       if item.get('process_name') == process), None)
+                if matching_process:
+                    cost_per_run = matching_process.get('cost_per_run', 0)
+                    total_cost += cost_per_run * quantity
+            
+            # Get material costs from JSON
+            material_data = self._load_material_costs()
+            logo_size = "Small Logo" if "small" in service_id else "Large Logo"
+            
+            # Get film costs
+            film_costs = material_data.get("film_costs", [])
+            matching_film = next((item for item in film_costs 
+                                if item.get('logo_size') == logo_size), None)
+            if matching_film:
+                total_cost += matching_film.get('cost_per_logo', 0) * quantity
+            
+            # Get ink costs
+            ink_costs = material_data.get("ink_costs", [])
+            matching_ink = next((item for item in ink_costs 
+                               if item.get('logo_size') == logo_size), None)
+            if matching_ink:
+                total_cost += matching_ink.get('cost_per_logo', 0) * quantity
+            
+            # Get powder costs
+            powder_costs = material_data.get("powder_costs", [])
+            matching_powder = next((item for item in powder_costs 
+                                  if item.get('logo_size') == logo_size), None)
+            if matching_powder:
+                total_cost += matching_powder.get('cost_per_logo', 0) * quantity
+                
+        except Exception as e:
+            print(f"Error calculating printing costs: {str(e)}")
         
         # Add estimated labor costs (can be adjusted based on actual data)
         labor_cost_per_item = 1.50  # Example value
@@ -505,83 +517,74 @@ class CostTracker:
         return round(total_cost, 2)
     
     def _calculate_embroidery_costs(self, service_id, quantity):
-        """Calculate embroidery costs including electricity, materials, etc."""
+        """Calculate embroidery costs including electricity, materials, etc. using JSON data."""
         total_cost = 0
         
-        # Get electricity costs from database
-        conn = sqlite3.connect(self.db_path)
-        
-        # Map service_id to relevant process names
-        # Update process names to match what's used in the electricity_costs table
-        process_mapping = {
-            "emb_1_small": ["Melco EMT16 Small Logo"],
-            "emb_1_large": ["Melco EMT16 Large Logo"],
-            "emb_front_back": ["Melco EMT16 Small Logo", "Melco EMT16 Large Logo"]
-        }
-        
-        # Get electricity costs for the relevant processes
-        processes = process_mapping.get(service_id, [])
-        
-        for process in processes:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT cost_per_run FROM electricity_costs 
-                WHERE process_type = 'embroidery' AND process_name = ?
-            """, (process,))
-            result = cursor.fetchone()
+        try:
+            # Get electricity costs from JSON
+            electricity_data = self._load_electricity_costs()
+            embroidery_electricity = electricity_data.get("embroidery_electricity", [])
             
-            if result:
-                cost_per_run = result[0]
-                total_cost += cost_per_run * quantity
-        
-        # Get material costs
-        # For embroidery, we need backing and thread costs
-        if service_id == "emb_1_small":
-            logo_size = "Small Logo"
-        elif service_id == "emb_1_large":
-            logo_size = "Large Logo"
-        else:  # front and back - both sizes
-            # This is approximated by using both sizes
-            cursor = conn.cursor()
+            # Map service_id to relevant process names
+            process_mapping = {
+                "emb_1_small": ["Embroidery Small Logo"],
+                "emb_1_large": ["Embroidery Large Logo"],
+                "emb_front_back": ["Embroidery Small Logo", "Embroidery Large Logo"]
+            }
             
-            # Small backing costs
-            cursor.execute("""
-                SELECT cost_per_logo FROM material_costs 
-                WHERE material_type = 'Backing' AND logo_size = 'Small Logo' LIMIT 1
-            """)
-            result = cursor.fetchone()
-            if result:
-                total_cost += result[0] * quantity
+            # Get electricity costs for the relevant processes
+            processes = process_mapping.get(service_id, [])
             
-            # Large backing costs
-            cursor.execute("""
-                SELECT cost_per_logo FROM material_costs 
-                WHERE material_type = 'Backing' AND logo_size = 'Large Logo' LIMIT 1
-            """)
-            result = cursor.fetchone()
-            if result:
-                total_cost += result[0] * quantity
+            for process in processes:
+                matching_process = next((item for item in embroidery_electricity 
+                                       if item.get('process_name') == process), None)
+                if matching_process:
+                    cost_per_run = matching_process.get('cost_per_run', 0)
+                    total_cost += cost_per_run * quantity
+            
+            # Get material costs from JSON
+            material_data = self._load_material_costs()
+            backing_costs = material_data.get("backing_costs", [])
+            
+            # For embroidery, we need backing and thread costs
+            if service_id == "emb_1_small":
+                logo_size = "Small Logo"
+            elif service_id == "emb_1_large":
+                logo_size = "Large Logo"
+            else:  # front and back - both sizes
+                # Small backing costs
+                small_backing = next((item for item in backing_costs 
+                                    if item.get('logo_size') == 'Small Logo'), None)
+                if small_backing:
+                    total_cost += small_backing.get('cost_per_logo', 0) * quantity
                 
-            # Add thread costs (approximate)
-            total_cost += 3.00 * quantity  # Combined thread costs from image
+                # Large backing costs
+                large_backing = next((item for item in backing_costs 
+                                    if item.get('logo_size') == 'Large Logo'), None)
+                if large_backing:
+                    total_cost += large_backing.get('cost_per_logo', 0) * quantity
+                    
+                # Add thread costs (approximate)
+                total_cost += 3.00 * quantity  # Combined thread costs
+                
+                # Add estimated labor costs
+                labor_cost_per_item = 2.00  # Higher for embroidery
+                total_cost += labor_cost_per_item * quantity
+                
+                return round(total_cost, 2)
             
-            conn.close()
-            return round(total_cost, 2)
-        
-        # Get backing costs
-        cursor.execute("""
-            SELECT cost_per_logo FROM material_costs 
-            WHERE material_type = 'Backing' AND logo_size = ? LIMIT 1
-        """, (logo_size,))
-        result = cursor.fetchone()
-        if result:
-            total_cost += result[0] * quantity
-        
-        # Add thread costs (approximate based on image)
-        thread_cost = 1.25 if logo_size == "Small Logo" else 1.75  # From image
-        total_cost += thread_cost * quantity
-        
-        conn.close()
+            # Get backing costs for single logo size
+            matching_backing = next((item for item in backing_costs 
+                                   if item.get('logo_size') == logo_size), None)
+            if matching_backing:
+                total_cost += matching_backing.get('cost_per_logo', 0) * quantity
+            
+            # Add thread costs (approximate based on size)
+            thread_cost = 1.25 if logo_size == "Small Logo" else 1.75
+            total_cost += thread_cost * quantity
+                
+        except Exception as e:
+            print(f"Error calculating embroidery costs: {str(e)}")
         
         # Add estimated labor costs (can be adjusted based on actual data)
         labor_cost_per_item = 2.00  # Example value, higher for embroidery
@@ -641,54 +644,66 @@ class CostTracker:
             "line_items": line_item_results
         }
     
-    def delete_electricity_cost(self, cost_id):
-        """Delete an electricity cost entry by ID."""
+    def delete_electricity_cost(self, process_name, process_type):
+        """Delete an electricity cost entry by process name and type."""
         try:
-            # Connect to the database
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
+            data = self._load_electricity_costs()
             
-            # Check if the cost exists
-            cursor.execute("SELECT id FROM electricity_costs WHERE id = ?", (cost_id,))
-            if not cursor.fetchone():
-                print(f"Electricity cost with ID {cost_id} not found")
-                conn.close()
+            # Find and remove the cost entry
+            target_key = f"{process_type}_electricity"
+            if target_key in data:
+                original_length = len(data[target_key])
+                data[target_key] = [item for item in data[target_key] 
+                                   if not (item.get('process_name') == process_name and 
+                                          item.get('process_type') == process_type)]
+                
+                # Check if anything was removed
+                if len(data[target_key]) < original_length:
+                    # Save updated data
+                    with open(self.electricity_file, 'w') as f:
+                        json.dump(data, f, indent=4)
+                    
+                    # Update instance data
+                    self.electricity_costs = data
+                    return True
+                else:
+                    print(f"Electricity cost with process name '{process_name}' and type '{process_type}' not found")
+                    return False
+            else:
+                print(f"No electricity costs found for process type '{process_type}'")
                 return False
-            
-            # Delete the cost
-            cursor.execute("DELETE FROM electricity_costs WHERE id = ?", (cost_id,))
-            
-            # Commit the changes and close the connection
-            conn.commit()
-            conn.close()
-            
-            return True
         except Exception as e:
             print(f"Error deleting electricity cost: {str(e)}")
             return False
     
-    def delete_material_cost(self, cost_id):
-        """Delete a material cost entry by ID."""
+    def delete_material_cost(self, material_name, material_type):
+        """Delete a material cost entry by material name and type."""
         try:
-            # Connect to the database
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
+            data = self._load_material_costs()
             
-            # Check if the cost exists
-            cursor.execute("SELECT id FROM material_costs WHERE id = ?", (cost_id,))
-            if not cursor.fetchone():
-                print(f"Material cost with ID {cost_id} not found")
-                conn.close()
+            # Find and remove the cost entry
+            target_key = f"{material_type.lower()}_costs"
+            if target_key in data:
+                original_length = len(data[target_key])
+                data[target_key] = [item for item in data[target_key] 
+                                   if not (item.get('material_name') == material_name and 
+                                          item.get('material_type') == material_type)]
+                
+                # Check if anything was removed
+                if len(data[target_key]) < original_length:
+                    # Save updated data
+                    with open(self.material_file, 'w') as f:
+                        json.dump(data, f, indent=4)
+                    
+                    # Update instance data
+                    self.material_costs = data
+                    return True
+                else:
+                    print(f"Material cost with name '{material_name}' and type '{material_type}' not found")
+                    return False
+            else:
+                print(f"No material costs found for material type '{material_type}'")
                 return False
-            
-            # Delete the cost
-            cursor.execute("DELETE FROM material_costs WHERE id = ?", (cost_id,))
-            
-            # Commit the changes and close the connection
-            conn.commit()
-            conn.close()
-            
-            return True
         except Exception as e:
             print(f"Error deleting material cost: {str(e)}")
             return False

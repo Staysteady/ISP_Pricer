@@ -231,19 +231,23 @@ def manage_business_costs(cost_tracker):
                     
                     with edit_col2:
                         # Edit and delete buttons
-                        if st.button("Edit", key=f"edit_{row['id']}"):
-                            # Store the cost ID to edit in session state
-                            st.session_state.editing_cost_id = row['id']
+                        if st.button("Edit", key=f"edit_{row.name}"):
+                            # Store the cost data to edit in session state (use row index as ID)
+                            st.session_state.editing_cost_id = row.name
                             st.session_state.editing_cost_data = row
                             st.rerun()
                         
                         if st.button("Delete", key=f"delete_{row['id']}"):
-                            success, message = cost_tracker.delete_business_cost(row['id'])
-                            if success:
-                                st.success(message)
-                                st.rerun()
-                            else:
-                                st.error(message)
+                            # Find the index of this cost in the costs list
+                            costs_df_full = cost_tracker.get_costs_by_category()
+                            if not costs_df_full.empty:
+                                cost_index = costs_df_full[costs_df_full.index == row.name].index[0]
+                                success, message = cost_tracker.delete_business_cost(cost_index)
+                                if success:
+                                    st.success(message)
+                                    st.rerun()
+                                else:
+                                    st.error(message)
         else:
             st.info("No costs found for the selected category.")
         
@@ -311,16 +315,28 @@ def manage_business_costs(cost_tracker):
                         "recurring_period": recurring_period
                     }
                     
-                    # Update in database
-                    success, message = cost_tracker.update_business_cost(cost_id, updated_data)
-                    if success:
-                        st.success(message)
-                        # Clear editing state
-                        del st.session_state.editing_cost_id
-                        del st.session_state.editing_cost_data
-                        st.rerun()
-                    else:
-                        st.error(message)
+                    # Update in database - find the index of this cost
+                    costs_df_full = cost_tracker.get_costs_by_category()
+                    if not costs_df_full.empty:
+                        # Find the cost by matching all fields since we don't have a stable ID
+                        matching_rows = costs_df_full[
+                            (costs_df_full['name'] == cost_data['name']) & 
+                            (costs_df_full['category_id'] == cost_data['category_id']) &
+                            (costs_df_full['cost_value'] == cost_data['cost_value'])
+                        ]
+                        if not matching_rows.empty:
+                            cost_index = matching_rows.index[0]
+                            success, message = cost_tracker.update_business_cost(cost_index, updated_data)
+                            if success:
+                                st.success(message)
+                                # Clear editing state
+                                del st.session_state.editing_cost_id
+                                del st.session_state.editing_cost_data
+                                st.rerun()
+                            else:
+                                st.error(message)
+                        else:
+                            st.error("Could not find cost to update")
                 
                 if cancel_edit:
                     # Clear editing state
@@ -662,13 +678,18 @@ def cost_import(cost_tracker):
                     submit_delete = st.form_submit_button("Delete Entry")
                     
                     if submit_delete:
+                        # Get the process name and type for the selected ID
+                        selected_row = electricity_df[electricity_df['id'] == delete_id].iloc[0]
+                        process_name = selected_row['process_name']
+                        process_type = selected_row['process_type']
+                        
                         # Delete the entry
-                        success = cost_tracker.delete_electricity_cost(delete_id)
+                        success = cost_tracker.delete_electricity_cost(process_name, process_type)
                         if success:
-                            st.success(f"Electricity cost entry with ID {delete_id} deleted successfully!")
+                            st.success(f"Electricity cost entry '{process_name}' deleted successfully!")
                             st.rerun()
                         else:
-                            st.error(f"Error deleting electricity cost entry with ID {delete_id}")
+                            st.error(f"Error deleting electricity cost entry '{process_name}'")
         
         # Manage material costs
         with manage_mat_tab:
@@ -717,13 +738,18 @@ def cost_import(cost_tracker):
                     submit_delete = st.form_submit_button("Delete Entry")
                     
                     if submit_delete:
+                        # Get the material name and type for the selected ID
+                        selected_row = materials_df[materials_df['id'] == delete_id].iloc[0]
+                        material_name = selected_row['material_name']
+                        material_type = selected_row['material_type']
+                        
                         # Delete the entry
-                        success = cost_tracker.delete_material_cost(delete_id)
+                        success = cost_tracker.delete_material_cost(material_name, material_type)
                         if success:
-                            st.success(f"Material cost entry with ID {delete_id} deleted successfully!")
+                            st.success(f"Material cost entry '{material_name}' deleted successfully!")
                             st.rerun()
                         else:
-                            st.error(f"Error deleting material cost entry with ID {delete_id}")
+                            st.error(f"Error deleting material cost entry '{material_name}'")
 
 def profit_analysis(cost_tracker):
     """Analyze profits compared to quotes."""
