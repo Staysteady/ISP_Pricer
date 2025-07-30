@@ -215,30 +215,47 @@ def manage_business_costs(cost_tracker):
     # View/Edit Costs tab
     with view_tab:
         # Get all costs
-        costs_df = cost_tracker.get_costs_by_category()
+        try:
+            costs_df = cost_tracker.get_costs_by_category()
+        except Exception as e:
+            st.error(f"Error loading costs: {str(e)}")
+            return
         
         if costs_df.empty:
             st.info("No costs have been added yet.")
             return
         
         # Filter by category
-        categories_df = cost_tracker.get_all_cost_categories()
-        filter_category = st.selectbox(
-            "Filter by Category",
-            options=[0] + categories_df['id'].tolist(),
-            format_func=lambda x: "All Categories" if x == 0 else categories_df[categories_df['id'] == x]['name'].iloc[0]
-        )
+        try:
+            categories_df = cost_tracker.get_all_cost_categories()
+            if not categories_df.empty and 'id' in categories_df.columns:
+                filter_category = st.selectbox(
+                    "Filter by Category",
+                    options=[0] + categories_df['id'].tolist(),
+                    format_func=lambda x: "All Categories" if x == 0 else categories_df[categories_df['id'] == x]['name'].iloc[0]
+                )
+            else:
+                st.warning("No categories available for filtering")
+                return
+        except Exception as e:
+            st.error(f"Error loading categories: {str(e)}")
+            return
         
         # Filter data
-        if filter_category != 0:
-            filtered_costs = costs_df[costs_df['category_id'] == filter_category]
-        else:
-            filtered_costs = costs_df
+        try:
+            if filter_category != 0 and 'category_id' in costs_df.columns:
+                filtered_costs = costs_df[costs_df['category_id'] == filter_category]
+            else:
+                filtered_costs = costs_df
+        except Exception as e:
+            st.error(f"Error filtering costs: {str(e)}")
+            return
         
         # Display costs
         if not filtered_costs.empty:
-            for _, row in filtered_costs.iterrows():
-                with st.expander(f"{row['name']} - £{row['cost_value']:.2f}"):
+            try:
+                for idx, row in filtered_costs.iterrows():
+                    with st.expander(f"{row.get('name', 'Unknown')} - £{row.get('cost_value', 0):.2f}"):
                     # Create columns for layout
                     edit_col1, edit_col2 = st.columns(2)
                     
@@ -269,6 +286,8 @@ def manage_business_costs(cost_tracker):
                                     st.rerun()
                                 else:
                                     st.error(message)
+            except Exception as e:
+                st.error(f"Error displaying costs: {str(e)}")
         else:
             st.info("No costs found for the selected category.")
         
