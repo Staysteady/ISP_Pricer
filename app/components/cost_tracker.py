@@ -256,48 +256,70 @@ def manage_business_costs(cost_tracker):
             try:
                 for idx, row in filtered_costs.iterrows():
                     with st.expander(f"{row.get('name', 'Unknown')} - £{row.get('cost_value', 0):.2f}"):
-                    # Create columns for layout
-                    edit_col1, edit_col2 = st.columns(2)
-                    
-                    with edit_col1:
-                        # Display cost details
-                        st.write(f"**Category:** {row['category_name']}")
-                        st.write(f"**Description:** {row['description']}")
-                        st.write(f"**Type:** {row['cost_type']}")
-                        st.write(f"**Date Incurred:** {row['date_incurred']}")
-                        st.write(f"**Recurring Period:** {row['recurring_period']}")
-                    
-                    with edit_col2:
-                        # Edit and delete buttons
-                        if st.button("Edit", key=f"edit_{row.name}"):
-                            # Store the cost data to edit in session state (use row index as ID)
-                            st.session_state.editing_cost_id = row.name
-                            st.session_state.editing_cost_data = row
-                            st.rerun()
+                        # Create columns for layout
+                        edit_col1, edit_col2 = st.columns(2)
                         
-                        if st.button("Delete", key=f"delete_{row['id']}"):
-                            # Find the index of this cost in the costs list
-                            costs_df_full = cost_tracker.get_costs_by_category()
-                            if not costs_df_full.empty:
-                                cost_index = costs_df_full[costs_df_full.index == row.name].index[0]
-                                success, message = cost_tracker.delete_business_cost(cost_index)
-                                if success:
-                                    st.success(message)
+                        with edit_col1:
+                            # Display cost details safely
+                            st.write(f"**Category:** {row.get('category_name', 'Unknown')}")
+                            st.write(f"**Description:** {row.get('description', '')}")
+                            st.write(f"**Type:** {row.get('cost_type', '')}")
+                            st.write(f"**Date Incurred:** {row.get('date_incurred', '')}")
+                            st.write(f"**Recurring Period:** {row.get('recurring_period', '')}")
+                        
+                        with edit_col2:
+                            # Edit and delete buttons
+                            if st.button("Edit", key=f"edit_{idx}"):
+                                try:
+                                    # Store the cost data to edit in session state
+                                    st.session_state.editing_cost_id = idx
+                                    st.session_state.editing_cost_data = row.to_dict()
                                     st.rerun()
-                                else:
-                                    st.error(message)
+                                except Exception as e:
+                                    st.error(f"Error preparing edit: {str(e)}")
+                            
+                            if st.button("Delete", key=f"delete_{idx}"):
+                                try:
+                                    # Find the index of this cost in the costs list by matching key fields
+                                    costs_data = cost_tracker._load_business_costs()
+                                    costs_list = costs_data.get("costs", [])
+                                    
+                                    # Find matching cost index
+                                    cost_index = -1
+                                    for i, cost in enumerate(costs_list):
+                                        if (cost.get('name') == row.get('name') and 
+                                            cost.get('category_id') == row.get('category_id') and
+                                            cost.get('cost_value') == row.get('cost_value')):
+                                            cost_index = i
+                                            break
+                                    
+                                    if cost_index >= 0:
+                                        success, message = cost_tracker.delete_business_cost(cost_index)
+                                        if success:
+                                            st.success(message)
+                                            st.rerun()
+                                        else:
+                                            st.error(message)
+                                    else:
+                                        st.error("Could not find cost to delete")
+                                except Exception as e:
+                                    st.error(f"Error deleting cost: {str(e)}")
             except Exception as e:
                 st.error(f"Error displaying costs: {str(e)}")
         else:
             st.info("No costs found for the selected category.")
         
         # Edit form (shown when editing a cost)
-        if 'editing_cost_id' in st.session_state:
+        if 'editing_cost_id' in st.session_state and 'editing_cost_data' in st.session_state:
             st.subheader("Edit Cost")
             
             # Get the cost data to edit
             cost_id = st.session_state.editing_cost_id
             cost_data = st.session_state.editing_cost_data
+            
+            # Ensure cost_data is a dictionary
+            if hasattr(cost_data, 'to_dict'):
+                cost_data = cost_data.to_dict()
             
             with st.form("edit_cost_form"):
                 # Category selection
